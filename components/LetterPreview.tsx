@@ -16,22 +16,28 @@ export default function LetterPreview({ employee, settings, letter }: LetterPrev
     backgroundColor: '#ffffff',
     fontFamily: 'Arial, Helvetica, sans-serif',
     padding: '48px 56px',
+    paddingBottom: 56,
     boxSizing: 'border-box',
     color: '#111827',
     fontSize: 13,
     lineHeight: 1.8,
     position: 'relative',
+    overflow: 'visible',
+    maxWidth: '100%',
   }
 
   const pStyle: React.CSSProperties = {
     margin: '0 0 16px 0',
     textAlign: 'justify',
+    wordBreak: 'break-word',
+    overflowWrap: 'break-word',
   }
 
   if (!employee) {
     return (
       <div
         id="printable-document"
+        className="letter-root"
         style={{ ...wrapperStyle, textAlign: 'center', color: '#6b7280' }}
       >
         Select an employee to preview letter
@@ -49,8 +55,8 @@ export default function LetterPreview({ employee, settings, letter }: LetterPrev
     : 'Subject: Experience Certificate'
 
   return (
-    <div id="printable-document">
-      <div style={wrapperStyle}>
+    <div id="printable-document" className="letter-root">
+      <div className="letter-page" style={wrapperStyle}>
         {/* Letterhead */}
         <div
           style={{
@@ -68,9 +74,18 @@ export default function LetterPreview({ employee, settings, letter }: LetterPrev
                 style={{ height: 44, objectFit: 'contain', flexShrink: 0 }}
               />
             )}
-            <div>
+            <div style={{ minWidth: 0, flex: 1, maxWidth: '100%' }}>
               <div style={{ fontSize: 15, fontWeight: 700, color: '#111827' }}>{company}</div>
-              <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2, maxWidth: 320 }}>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: '#6b7280',
+                  marginTop: 2,
+                  maxWidth: 320,
+                  wordBreak: 'break-word',
+                  overflowWrap: 'break-word',
+                }}
+              >
                 {settings.address}
               </div>
               <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>
@@ -177,6 +192,7 @@ export default function LetterPreview({ employee, settings, letter }: LetterPrev
         </div>
 
         <div
+          className="letter-footer"
           style={{
             marginTop: 40,
             borderTop: '1px solid #e5e7eb',

@@ -39,3 +39,35 @@ create table employees (
 
 -- Storage bucket: create "company-assets" as public in Supabase Dashboard
 -- Policies: allow public read, authenticated/anon upload as per your project setup
+
+-- Row Level Security (required for browser-side Supabase access)
+alter table settings enable row level security;
+alter table employees enable row level security;
+
+create policy "Allow public read settings"
+  on settings for select
+  using (true);
+
+create policy "Allow public insert settings"
+  on settings for insert
+  with check (true);
+
+create policy "Allow public update settings"
+  on settings for update
+  using (true);
+
+create policy "Allow public read employees"
+  on employees for select
+  using (true);
+
+create policy "Allow public insert employees"
+  on employees for insert
+  with check (true);
+
+create policy "Allow public update employees"
+  on employees for update
+  using (true);
+
+create policy "Allow public delete employees"
+  on employees for delete
+  using (true);

@@ -1,4 +1,4 @@
-import type { SalaryCalculation } from '@/lib/salaryCalc'
+import type { SalaryCalculation, SalaryLineItem } from '@/lib/salaryCalc'
 
 export interface Employee {
   id: string
@@ -43,7 +43,9 @@ export interface CustomDeduction {
   amount: number
 }
 
-export type PayslipTemplateId = 1 | 2 | 3
+export type Reimbursement = SalaryLineItem
+
+export type PayslipTemplateId = 1 | 2 | 3 | 4
 
 export interface PayslipPreviewProps {
   employee: Employee | null
@@ -65,7 +67,10 @@ export interface PayslipData {
   to_date: string
   lop_days: number
   pay_date: string
+  overtime_hours: number
+  final_settlement: number
   custom_deductions: CustomDeduction[]
+  reimbursements: Reimbursement[]
   showTaxPage: boolean
   selectedTemplate: PayslipTemplateId
 }

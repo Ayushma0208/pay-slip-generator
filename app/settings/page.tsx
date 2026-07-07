@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import { X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import type { PayslipCustomField } from '@/types'
-import { supabase } from '@/lib/supabase'
 import { useSettings } from '@/context/SettingsContext'
+import { getErrorMessage } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -128,19 +128,15 @@ export default function SettingsPage() {
   ): Promise<string | null> => {
     setUploading(true)
     try {
-      const ext = file.name.split('.').pop() || 'png'
-      const path = `${prefix}-${Date.now()}.${ext}`
-      const { error: uploadError } = await supabase.storage
-        .from('company-assets')
-        .upload(path, file, { upsert: true })
-
-      if (uploadError) throw uploadError
-
-      const { data } = supabase.storage.from('company-assets').getPublicUrl(path)
-      return data.publicUrl
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('prefix', prefix)
+      const res = await fetch('/api/settings/upload', { method: 'POST', body: formData })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Upload failed')
+      return data.url
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Upload failed'
-      toast.error(message)
+      toast.error(getErrorMessage(err, 'Upload failed'))
       return null
     } finally {
       setUploading(false)
@@ -168,6 +164,7 @@ export default function SettingsPage() {
     setSaving(true)
     try {
       const payload = {
+        id: settings.id || undefined,
         company_name: form.company_name || null,
         address: form.address || null,
         email: form.email || null,
@@ -180,22 +177,20 @@ export default function SettingsPage() {
         payslip_custom_fields: form.payslip_custom_fields.filter((f) => f.label.trim()),
       }
 
-      if (settings.id) {
-        const { error } = await supabase
-          .from('settings')
-          .update(payload)
-          .eq('id', settings.id)
-        if (error) throw error
-      } else {
-        const { error } = await supabase.from('settings').insert(payload)
-        if (error) throw error
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to save settings')
       }
 
       toast.success('Settings saved')
       await refetch()
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to save settings'
-      toast.error(message)
+      toast.error(getErrorMessage(err, 'Failed to save settings'))
     } finally {
       setSaving(false)
     }

@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { supabase } from '@/lib/supabase'
 import { useSettings } from '@/context/SettingsContext'
 import { calculateSalary } from '@/lib/salaryCalc'
-import { MONTHS, getMonthDateRange } from '@/lib/utils'
-import type { CustomDeduction, Employee, PayslipData, PayslipTemplateId } from '@/types'
+import { getErrorMessage, MONTHS, getMonthDateRange } from '@/lib/utils'
+import PayslipPreviewT4 from '@/components/PayslipPreviewT4'
+import type { CustomDeduction, Employee, PayslipData, PayslipTemplateId, Reimbursement } from '@/types'
 import EmployeeSearch from '@/components/EmployeeSearch'
 import PayslipPreview from '@/components/PayslipPreview'
 import PayslipPreviewT2 from '@/components/PayslipPreviewT2'
@@ -25,24 +25,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-function mapEmployee(row: Record<string, unknown>): Employee {
-  return {
-    id: String(row.id),
-    name: String(row.name ?? ''),
-    employee_id: String(row.employee_id ?? ''),
-    designation: String(row.designation ?? ''),
-    department: String(row.department ?? ''),
-    joining_date: String(row.joining_date ?? ''),
-    email: String(row.email ?? ''),
-    phone: String(row.phone ?? ''),
-    bank_name: String(row.bank_name ?? ''),
-    bank_account: String(row.bank_account ?? ''),
-    pan_number: String(row.pan_number ?? ''),
-    pf_number: String(row.pf_number ?? ''),
-    uan: String(row.uan ?? ''),
-    gross_salary: Number(row.gross_salary) || 0,
-    payment_mode: String(row.payment_mode ?? 'Bank Transfer'),
-  }
+function mapEmployee(row: Employee): Employee {
+  return row
 }
 
 const currentYear = new Date().getFullYear()
@@ -57,9 +41,12 @@ const defaultPayslip = (): PayslipData => ({
   to_date: initialRange.to_date,
   lop_days: 0,
   pay_date: today,
+  overtime_hours: 0,
+  final_settlement: 0,
   custom_deductions: [],
+  reimbursements: [],
   showTaxPage: false,
-  selectedTemplate: 1,
+  selectedTemplate: 4,
 })
 
 const TEMPLATES: {
@@ -68,6 +55,7 @@ const TEMPLATES: {
   name: string
   desc: string
 }[] = [
+  { id: 4, tag: 'T4', name: 'Corporate Detailed', desc: 'Full Breakdown' },
   { id: 1, tag: 'T1', name: 'Corporate Standard', desc: 'Classic Format' },
   { id: 2, tag: 'T2', name: 'Minimal Elegant', desc: 'Clean & Formal' },
   { id: 3, tag: 'T3', name: 'Modern Corporate', desc: 'Bold & Modern' },
@@ -91,12 +79,12 @@ export default function PayslipPage() {
 
   const fetchEmployees = useCallback(async () => {
     try {
-      const { data, error } = await supabase.from('employees').select('*').order('name')
-      if (error) throw error
-      setEmployees((data || []).map(mapEmployee))
+      const res = await fetch('/api/employees')
+      if (!res.ok) throw new Error('Failed to load employees')
+      const data = await res.json()
+      setEmployees(data.map(mapEmployee))
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to load employees'
-      toast.error(message)
+      toast.error(getErrorMessage(err, 'Failed to load employees'))
     }
   }, [])
 
@@ -146,6 +134,35 @@ export default function PayslipPage() {
     setGenerated(false)
   }
 
+  const addReimbursement = () => {
+    setPayslip((prev) => ({
+      ...prev,
+      reimbursements: [...prev.reimbursements, { label: '', amount: 0 }],
+    }))
+    setGenerated(false)
+  }
+
+  const updateReimbursement = (
+    index: number,
+    field: keyof Reimbursement,
+    value: string | number
+  ) => {
+    setPayslip((prev) => {
+      const next = [...prev.reimbursements]
+      next[index] = { ...next[index], [field]: value }
+      return { ...prev, reimbursements: next }
+    })
+    setGenerated(false)
+  }
+
+  const removeReimbursement = (index: number) => {
+    setPayslip((prev) => ({
+      ...prev,
+      reimbursements: prev.reimbursements.filter((_, i) => i !== index),
+    }))
+    setGenerated(false)
+  }
+
   const salaryCalc =
     selected && payslip.from_date && payslip.to_date
       ? calculateSalary(
@@ -153,7 +170,12 @@ export default function PayslipPage() {
           payslip.from_date,
           payslip.to_date,
           payslip.lop_days,
-          payslip.custom_deductions
+          payslip.custom_deductions,
+          {
+            finalSettlement: payslip.final_settlement,
+            reimbursements: payslip.reimbursements,
+            overtimeHours: payslip.overtime_hours,
+          }
         )
       : null
 
@@ -203,9 +225,9 @@ export default function PayslipPage() {
             >
               SELECT TEMPLATE
             </p>
-            <div className="flex gap-3">
+            <div className="grid grid-cols-2 gap-3">
               {TEMPLATES.map((t) => {
-                const selected = payslip.selectedTemplate === t.id
+                const isSelected = payslip.selectedTemplate === t.id
                 return (
                   <button
                     key={t.id}
@@ -216,13 +238,11 @@ export default function PayslipPage() {
                     }}
                     className="rounded-lg border text-left transition-colors"
                     style={{
-                      width: '33%',
-                      flex: '1 1 33%',
-                      border: selected ? '2px solid #EB3514' : '1px solid #e5e7eb',
+                      border: isSelected ? '2px solid #EB3514' : '1px solid #e5e7eb',
                       borderRadius: 8,
                       padding: 12,
                       cursor: 'pointer',
-                      backgroundColor: selected ? '#fff5f3' : '#fff',
+                      backgroundColor: isSelected ? '#fff5f3' : '#fff',
                     }}
                   >
                     <div className="text-[10px] font-bold text-accent">{t.tag}</div>
@@ -310,11 +330,80 @@ export default function PayslipPage() {
                   }
                 />
               </div>
+              <div className="space-y-2">
+                <Label>Overtime Hours</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.1"
+                  value={payslip.overtime_hours}
+                  onChange={(e) =>
+                    updatePayslip('overtime_hours', parseFloat(e.target.value) || 0)
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Final Settlement</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={payslip.final_settlement || ''}
+                  onChange={(e) =>
+                    updatePayslip('final_settlement', parseFloat(e.target.value) || 0)
+                  }
+                />
+              </div>
             </div>
           </div>
 
           <div>
-            <SectionHeader title="Deductions" />
+            <SectionHeader title="Reimbursements" />
+            <div className="mb-3 flex justify-end">
+              <Button type="button" variant="secondary" size="sm" onClick={addReimbursement}>
+                Add Reimbursement
+              </Button>
+            </div>
+            <div className="space-y-2">
+              {payslip.reimbursements.map((r, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <Input
+                    placeholder="Label"
+                    className="flex-1"
+                    value={r.label}
+                    onChange={(e) => updateReimbursement(i, 'label', e.target.value)}
+                  />
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    placeholder="Amount"
+                    className="w-28"
+                    value={r.amount || ''}
+                    onChange={(e) =>
+                      updateReimbursement(i, 'amount', parseFloat(e.target.value) || 0)
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="iconLg"
+                    className="shrink-0 text-text-secondary hover:bg-accent-light hover:text-accent"
+                    onClick={() => removeReimbursement(i)}
+                    aria-label="Remove reimbursement"
+                  >
+                    <X className="h-5 w-5" strokeWidth={2.5} />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <SectionHeader title="Other Deductions" />
+            <p className="mb-3 text-[11px] text-text-muted">
+              Professional Tax (₹200) is applied automatically.
+            </p>
             <div className="mb-3 flex justify-end">
               <Button type="button" variant="secondary" size="sm" onClick={addDeduction}>
                 Add Deduction
@@ -399,6 +488,7 @@ export default function PayslipPage() {
             {payslip.selectedTemplate === 1 ? <PayslipPreview {...previewProps} /> : null}
             {payslip.selectedTemplate === 2 ? <PayslipPreviewT2 {...previewProps} /> : null}
             {payslip.selectedTemplate === 3 ? <PayslipPreviewT3 {...previewProps} /> : null}
+            {payslip.selectedTemplate === 4 ? <PayslipPreviewT4 {...previewProps} /> : null}
           </DocumentPreviewFrame>
         </div>
       </div>

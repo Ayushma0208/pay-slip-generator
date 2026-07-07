@@ -272,7 +272,9 @@ export default function PayslipPreview({
 
   const emp = employee
   const c = calc
-  const stdTotal = parseFloat((c.stdBasic + c.stdHRA + c.stdSpecial).toFixed(2))
+  const stdTotal = parseFloat(
+    (c.stdBasic + c.stdHRA + c.stdMedical + c.stdConveyance + c.stdSpecial).toFixed(2)
+  )
   const words = numberToIndianWords(c.netPay).toUpperCase()
   const fyEnd = String((parseInt(year, 10) || 0) + 1).slice(-2)
   const totalPages = showTaxPage ? 2 : 1
@@ -299,7 +301,8 @@ export default function PayslipPreview({
   const empRows = chunkEmpRows(empCells)
 
   const deds = [
-    { label: 'Ee PF contribution', amount: c.pf },
+    { label: 'Ee PF contribution', amount: c.pfEmployee },
+    { label: 'Professional Tax', amount: c.professionalTax },
     ...customDeductions
       .filter((d) => d.label)
       .map((d) => ({ label: d.label, amount: Number(d.amount) || 0 })),
@@ -308,7 +311,12 @@ export default function PayslipPreview({
   const earns = [
     { l: 'Basic', s: c.stdBasic, a: c.actualBasic },
     { l: 'HRA', s: c.stdHRA, a: c.actualHRA },
+    { l: 'Medical Allowance', s: c.stdMedical, a: c.actualMedical },
+    { l: 'Conveyance Allowance', s: c.stdConveyance, a: c.actualConveyance },
     { l: 'Special Allowance', s: c.stdSpecial, a: c.actualSpecial },
+    ...(c.finalSettlement > 0
+      ? [{ l: 'Final Settlement', s: c.finalSettlement, a: c.finalSettlement }]
+      : []),
   ]
 
   const rowN = Math.max(earns.length, deds.length, 3)
@@ -445,7 +453,7 @@ export default function PayslipPreview({
                     padding: '5px 8px',
                   })}
                 >
-                  {fmt(c.actualGross)}
+                  {fmt(c.totalEarningsA)}
                 </td>
                 <td
                   style={earnTd(3, {

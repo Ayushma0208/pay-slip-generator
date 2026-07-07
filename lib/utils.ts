@@ -5,6 +5,15 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+export function getErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof Error && err.message) return err.message
+  if (err && typeof err === 'object' && 'message' in err) {
+    const message = (err as { message: unknown }).message
+    if (typeof message === 'string' && message.trim()) return message
+  }
+  return fallback
+}
+
 export const formatCurrency = (value: number): string => {
   return (
     '₹' +
@@ -39,6 +48,17 @@ export function toDateString(d: Date): string {
   const m = String(d.getMonth() + 1).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')
   return `${y}-${m}-${day}`
+}
+
+/** Inclusive calendar days between two YYYY-MM-DD dates (e.g. Jul 8–Jul 11 = 4). */
+export function calculateLeaveDays(fromDate: string, toDate: string): number {
+  if (!fromDate || !toDate) return 0
+  const from = new Date(fromDate + 'T12:00:00')
+  const to = new Date(toDate + 'T12:00:00')
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return 0
+  if (to < from) return 0
+  const msPerDay = 1000 * 60 * 60 * 24
+  return Math.floor((to.getTime() - from.getTime()) / msPerDay) + 1
 }
 
 export function getMonthDateRange(monthName: string, yearStr: string): {

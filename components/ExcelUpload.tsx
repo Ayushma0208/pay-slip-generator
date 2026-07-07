@@ -3,8 +3,10 @@
 import { useRef, useState } from 'react'
 import * as XLSX from 'xlsx'
 import toast from 'react-hot-toast'
-import { supabase } from '@/lib/supabase'
+import { getErrorMessage } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Dialog,
   DialogContent,
@@ -80,6 +82,7 @@ export default function ExcelUpload({ open, onOpenChange, onSuccess }: ExcelUplo
   const inputRef = useRef<HTMLInputElement>(null)
   const [previewCount, setPreviewCount] = useState(0)
   const [rows, setRows] = useState<Record<string, unknown>[]>([])
+  const [defaultPassword, setDefaultPassword] = useState('Employee@123')
   const [uploading, setUploading] = useState(false)
 
   const reset = () => {
@@ -134,51 +137,25 @@ export default function ExcelUpload({ open, onOpenChange, onSuccess }: ExcelUplo
 
     setUploading(true)
     try {
-      const employeeIds = rows.map((r) => String(r.employee_id).trim())
-      const { data: existing } = await supabase
-        .from('employees')
-        .select('employee_id')
-        .in('employee_id', employeeIds)
-
-      const existingSet = new Set((existing || []).map((e) => e.employee_id))
-      const toInsert = rows.filter((r) => !existingSet.has(String(r.employee_id).trim()))
-      const skipped = rows.length - toInsert.length
-
-      if (toInsert.length === 0) {
-        toast.error('All employee IDs already exist in the database')
-        setUploading(false)
-        return
-      }
-
-      const payload = toInsert.map((r) => ({
-        name: String(r.name).trim(),
-        employee_id: String(r.employee_id).trim(),
-        designation: r.designation ? String(r.designation) : null,
-        department: r.department ? String(r.department) : null,
-        joining_date: r.joining_date as string | null,
-        email: r.email ? String(r.email) : null,
-        phone: r.phone ? String(r.phone) : null,
-        bank_name: r.bank_name ? String(r.bank_name) : null,
-        bank_account: r.bank_account ? String(r.bank_account) : null,
-        pan_number: r.pan_number ? String(r.pan_number) : null,
-        pf_number: r.pf_number ? String(r.pf_number) : null,
-        uan: r.uan ? String(r.uan) : null,
-        gross_salary: Number(r.gross_salary) || 0,
-        payment_mode: r.payment_mode ? String(r.payment_mode) : 'Bank Transfer',
-      }))
-
-      const { error } = await supabase.from('employees').insert(payload)
-      if (error) throw error
+      const res = await fetch('/api/employees/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ employees: rows, defaultPassword }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Upload failed')
 
       toast.success(
-        `Imported ${toInsert.length} employee(s)${skipped ? ` (${skipped} skipped — duplicate ID)` : ''}`
+        `Imported ${data.imported} employee(s)${data.errors?.length ? ` (${data.errors.length} skipped)` : ''}`
       )
+      if (data.errors?.length) {
+        console.warn('Import warnings:', data.errors)
+      }
       onOpenChange(false)
       reset()
       onSuccess()
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Upload failed'
-      toast.error(message)
+      toast.error(getErrorMessage(err, 'Upload failed'))
     } finally {
       setUploading(false)
     }
@@ -213,6 +190,16 @@ export default function ExcelUpload({ open, onOpenChange, onSuccess }: ExcelUplo
             {previewCount} employee(s) ready to import
           </p>
         )}
+        <div className="space-y-2">
+          <Label>Default login password for imported employees</Label>
+          <Input
+            type="password"
+            value={defaultPassword}
+            onChange={(e) => setDefaultPassword(e.target.value)}
+            placeholder="Min 6 characters"
+          />
+          <p className="text-xs text-text-muted">Each row must include an email for login.</p>
+        </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel

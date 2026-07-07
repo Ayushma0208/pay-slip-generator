@@ -3,8 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Pencil, Plus, Trash2, Upload, Users } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { supabase } from '@/lib/supabase'
-import { formatCurrency, getInitials } from '@/lib/utils'
+import { formatCurrency, getErrorMessage, getInitials } from '@/lib/utils'
 import type { Employee } from '@/types'
 import EmployeeForm from '@/components/EmployeeForm'
 import ExcelUpload from '@/components/ExcelUpload'
@@ -30,23 +29,7 @@ import {
 } from '@/components/ui/alert-dialog'
 
 function mapEmployee(row: Record<string, unknown>): Employee {
-  return {
-    id: String(row.id),
-    name: String(row.name ?? ''),
-    employee_id: String(row.employee_id ?? ''),
-    designation: String(row.designation ?? ''),
-    department: String(row.department ?? ''),
-    joining_date: String(row.joining_date ?? ''),
-    email: String(row.email ?? ''),
-    phone: String(row.phone ?? ''),
-    bank_name: String(row.bank_name ?? ''),
-    bank_account: String(row.bank_account ?? ''),
-    pan_number: String(row.pan_number ?? ''),
-    pf_number: String(row.pf_number ?? ''),
-    uan: String(row.uan ?? ''),
-    gross_salary: Number(row.gross_salary) || 0,
-    payment_mode: String(row.payment_mode ?? 'Bank Transfer'),
-  }
+  return row as unknown as Employee
 }
 
 export default function EmployeesPage() {
@@ -60,16 +43,12 @@ export default function EmployeesPage() {
   const fetchEmployees = useCallback(async () => {
     setLoading(true)
     try {
-      const { data, error } = await supabase
-        .from('employees')
-        .select('*')
-        .order('name')
-
-      if (error) throw error
-      setEmployees((data || []).map(mapEmployee))
+      const res = await fetch('/api/employees')
+      if (!res.ok) throw new Error('Failed to load employees')
+      const data = await res.json()
+      setEmployees(data.map(mapEmployee))
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to load employees'
-      toast.error(message)
+      toast.error(getErrorMessage(err, 'Failed to load employees'))
     } finally {
       setLoading(false)
     }
@@ -82,14 +61,13 @@ export default function EmployeesPage() {
   const handleDelete = async () => {
     if (!deleteTarget) return
     try {
-      const { error } = await supabase.from('employees').delete().eq('id', deleteTarget.id)
-      if (error) throw error
+      const res = await fetch(`/api/employees/${deleteTarget.id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Delete failed')
       toast.success('Employee deleted')
       setDeleteTarget(null)
       fetchEmployees()
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Delete failed'
-      toast.error(message)
+      toast.error(getErrorMessage(err, 'Delete failed'))
     }
   }
 

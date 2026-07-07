@@ -269,10 +269,27 @@ export default function PayslipPreviewT2({
                 <td style={{ ...tdRow, textAlign: 'right' }}>{fmt(c.actualHRA)}</td>
               </tr>
               <tr>
+                <td style={tdRow}>Medical Allowance</td>
+                <td style={{ ...tdRow, textAlign: 'right' }}>{fmt(c.stdMedical)}</td>
+                <td style={{ ...tdRow, textAlign: 'right' }}>{fmt(c.actualMedical)}</td>
+              </tr>
+              <tr>
+                <td style={tdRow}>Conveyance Allowance</td>
+                <td style={{ ...tdRow, textAlign: 'right' }}>{fmt(c.stdConveyance)}</td>
+                <td style={{ ...tdRow, textAlign: 'right' }}>{fmt(c.actualConveyance)}</td>
+              </tr>
+              <tr>
                 <td style={tdRow}>Special Allowance</td>
                 <td style={{ ...tdRow, textAlign: 'right' }}>{fmt(c.stdSpecial)}</td>
                 <td style={{ ...tdRow, textAlign: 'right' }}>{fmt(c.actualSpecial)}</td>
               </tr>
+              {c.finalSettlement > 0 ? (
+                <tr>
+                  <td style={tdRow}>Final Settlement</td>
+                  <td style={{ ...tdRow, textAlign: 'right' }}>{fmt(c.finalSettlement)}</td>
+                  <td style={{ ...tdRow, textAlign: 'right' }}>{fmt(c.finalSettlement)}</td>
+                </tr>
+              ) : null}
               <tr>
                 <td
                   style={{
@@ -302,7 +319,7 @@ export default function PayslipPreviewT2({
                     textAlign: 'right',
                   }}
                 >
-                  {fmt(c.actualGross)}
+                  {fmt(c.totalEarningsA)}
                 </td>
               </tr>
             </tbody>
@@ -332,7 +349,11 @@ export default function PayslipPreviewT2({
             <tbody>
               <tr>
                 <td style={tdRow}>Provident Fund (12% of Basic)</td>
-                <td style={{ ...tdRow, textAlign: 'right' }}>{fmt(c.pf)}</td>
+                <td style={{ ...tdRow, textAlign: 'right' }}>{fmt(c.pfEmployee)}</td>
+              </tr>
+              <tr>
+                <td style={tdRow}>Professional Tax</td>
+                <td style={{ ...tdRow, textAlign: 'right' }}>{fmt(c.professionalTax)}</td>
               </tr>
               {customDeductions.map((d, i) =>
                 d.label ? (
@@ -368,6 +389,56 @@ export default function PayslipPreviewT2({
             </tbody>
           </table>
         </div>
+
+        {c.reimbursements.length > 0 ? (
+          <div style={{ marginBottom: 14 }}>
+            <div
+              style={{
+                fontSize: 10,
+                textTransform: 'uppercase',
+                letterSpacing: '1px',
+                color: '#9ca3af',
+                marginBottom: 8,
+                fontWeight: 600,
+              }}
+            >
+              REIMBURSEMENTS
+            </div>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <tbody>
+                {c.reimbursements.map((r, i) => (
+                  <tr key={i}>
+                    <td style={tdRow}>{r.label}</td>
+                    <td style={{ ...tdRow, textAlign: 'right' }}>{fmt(r.amount)}</td>
+                  </tr>
+                ))}
+                <tr>
+                  <td
+                    style={{
+                      padding: '10px 0',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      borderTop: '1px solid #1a1a1a',
+                    }}
+                  >
+                    TOTAL REIMBURSEMENTS
+                  </td>
+                  <td
+                    style={{
+                      padding: '10px 0',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      borderTop: '1px solid #1a1a1a',
+                      textAlign: 'right',
+                    }}
+                  >
+                    {fmt(c.totalReimbursementsD)}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        ) : null}
 
         <div
           style={{

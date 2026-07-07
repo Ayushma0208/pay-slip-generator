@@ -289,10 +289,27 @@ export default function PayslipPreviewT3({
                 <td style={{ ...earnTd, textAlign: 'right' }}>{fmt(c.actualHRA)}</td>
               </tr>
               <tr>
+                <td style={earnTd}>Medical Allowance</td>
+                <td style={{ ...earnTd, textAlign: 'right' }}>{fmt(c.stdMedical)}</td>
+                <td style={{ ...earnTd, textAlign: 'right' }}>{fmt(c.actualMedical)}</td>
+              </tr>
+              <tr>
+                <td style={earnTd}>Conveyance Allowance</td>
+                <td style={{ ...earnTd, textAlign: 'right' }}>{fmt(c.stdConveyance)}</td>
+                <td style={{ ...earnTd, textAlign: 'right' }}>{fmt(c.actualConveyance)}</td>
+              </tr>
+              <tr>
                 <td style={earnTd}>Special Allowance</td>
                 <td style={{ ...earnTd, textAlign: 'right' }}>{fmt(c.stdSpecial)}</td>
                 <td style={{ ...earnTd, textAlign: 'right' }}>{fmt(c.actualSpecial)}</td>
               </tr>
+              {c.finalSettlement > 0 ? (
+                <tr>
+                  <td style={earnTd}>Final Settlement</td>
+                  <td style={{ ...earnTd, textAlign: 'right' }}>{fmt(c.finalSettlement)}</td>
+                  <td style={{ ...earnTd, textAlign: 'right' }}>{fmt(c.finalSettlement)}</td>
+                </tr>
+              ) : null}
               <tr>
                 <td
                   style={{
@@ -325,7 +342,7 @@ export default function PayslipPreviewT3({
                     textAlign: 'right',
                   }}
                 >
-                  {fmt(c.actualGross)}
+                  {fmt(c.totalEarningsA)}
                 </td>
               </tr>
             </tbody>
@@ -356,7 +373,11 @@ export default function PayslipPreviewT3({
             <tbody>
               <tr>
                 <td style={earnTd}>Provident Fund (12% of Basic)</td>
-                <td style={{ ...earnTd, textAlign: 'right' }}>{fmt(c.pf)}</td>
+                <td style={{ ...earnTd, textAlign: 'right' }}>{fmt(c.pfEmployee)}</td>
+              </tr>
+              <tr>
+                <td style={earnTd}>Professional Tax</td>
+                <td style={{ ...earnTd, textAlign: 'right' }}>{fmt(c.professionalTax)}</td>
               </tr>
               {customDeductions.map((d, i) =>
                 d.label ? (
@@ -395,6 +416,28 @@ export default function PayslipPreviewT3({
           </table>
         </div>
       </div>
+
+      {c.reimbursements.length > 0 ? (
+        <div style={{ padding: '0 40px 12px' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 6 }}>REIMBURSEMENTS</div>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <tbody>
+              {c.reimbursements.map((r, i) => (
+                <tr key={i}>
+                  <td style={earnTd}>{r.label}</td>
+                  <td style={{ ...earnTd, textAlign: 'right' }}>{fmt(r.amount)}</td>
+                </tr>
+              ))}
+              <tr>
+                <td style={{ ...earnTd, fontWeight: 700 }}>TOTAL REIMBURSEMENTS</td>
+                <td style={{ ...earnTd, textAlign: 'right', fontWeight: 700 }}>
+                  {fmt(c.totalReimbursementsD)}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      ) : null}
 
       <div
         className="payslip-t3-net-row"

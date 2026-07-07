@@ -1,0 +1,103 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  EMPLOYEE
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  role         UserRole  @default(EMPLOYEE)
+  employeeId   String?   @unique @map("employee_id")
+  employee     Employee? @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  @@map("users")
+}
+
+model Employee {
+  id                String             @id @default(uuid())
+  name              String
+  employeeId        String             @unique @map("employee_id")
+  designation       String?
+  department        String?
+  joiningDate       DateTime?          @map("joining_date") @db.Date
+  email             String?
+  phone             String?
+  bankName          String?            @map("bank_name")
+  bankAccount       String?            @map("bank_account")
+  panNumber         String?            @map("pan_number")
+  pfNumber          String?            @map("pf_number")
+  uan               String?
+  grossSalary       Decimal            @default(0) @map("gross_salary") @db.Decimal(12, 2)
+  paymentMode       String             @default("Bank Transfer") @map("payment_mode")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  user              User?
+  attendanceRecords AttendanceRecord[]
+  leaveRequests     LeaveRequest[]
+
+  @@map("employees")
+}
+
+model AttendanceRecord {
+  id         String    @id @default(uuid())
+  employeeId String    @map("employee_id")
+  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date       DateTime  @db.Date
+  checkIn    DateTime  @map("check_in")
+  checkOut   DateTime? @map("check_out")
+  notes      String?
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@unique([employeeId, date])
+  @@map("attendance_records")
+}
+
+model LeaveRequest {
+  id         String      @id @default(uuid())
+  employeeId String      @map("employee_id")
+  employee   Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType  String      @map("leave_type")
+  fromDate   DateTime    @map("from_date") @db.Date
+  toDate     DateTime    @map("to_date") @db.Date
+  days       Decimal     @db.Decimal(5, 1)
+  reason     String?
+  status     LeaveStatus @default(PENDING)
+  adminNote  String?     @map("admin_note")
+  reviewedAt DateTime?   @map("reviewed_at")
+  createdAt  DateTime    @default(now()) @map("created_at")
+
+  @@map("leave_requests")
+}
+
+model Settings {
+  id                    String   @id @default(uuid())
+  companyName           String?  @map("company_name")
+  address               String?
+  email                 String?
+  phone                 String?
+  website               String?
+  signatoryName         String?  @map("signatory_name")
+  signatoryDesignation  String?  @map("signatory_designation")
+  logoUrl               String?  @map("logo_url")
+  signatureUrl          String?  @map("signature_url")
+  payslipCustomFields   Json     @default("[]") @map("payslip_custom_fields")
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  @@map("settings")
+}

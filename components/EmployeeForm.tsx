@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
-import { supabase } from '@/lib/supabase'
-import { PAYMENT_MODES } from '@/lib/utils'
+import { PAYMENT_MODES, getErrorMessage } from '@/lib/utils'
 import type { Employee } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -38,6 +37,7 @@ const emptyForm = {
   uan: '',
   gross_salary: '',
   payment_mode: 'Bank Transfer',
+  password: '',
 }
 
 interface EmployeeFormProps {
@@ -73,6 +73,7 @@ export default function EmployeeForm({
         uan: employee.uan || '',
         gross_salary: String(employee.gross_salary ?? ''),
         payment_mode: employee.payment_mode || 'Bank Transfer',
+        password: '',
       })
     } else {
       setForm(emptyForm)
@@ -89,6 +90,14 @@ export default function EmployeeForm({
       toast.error('Name and Employee ID are required')
       return
     }
+    if (!form.email.trim()) {
+      toast.error('Email is required for employee login')
+      return
+    }
+    if (!employee && (!form.password || form.password.length < 6)) {
+      toast.error('Initial password must be at least 6 characters')
+      return
+    }
     const gross = parseFloat(form.gross_salary)
     if (Number.isNaN(gross) || gross < 0) {
       toast.error('Valid gross salary is required')
@@ -103,7 +112,7 @@ export default function EmployeeForm({
         designation: form.designation || null,
         department: form.department || null,
         joining_date: form.joining_date || null,
-        email: form.email || null,
+        email: form.email.trim(),
         phone: form.phone || null,
         bank_name: form.bank_name || null,
         bank_account: form.bank_account || null,
@@ -112,53 +121,24 @@ export default function EmployeeForm({
         uan: form.uan || null,
         gross_salary: gross,
         payment_mode: form.payment_mode,
+        ...(form.password ? { password: form.password } : {}),
       }
 
-      if (!employee) {
-        const { data: existing } = await supabase
-          .from('employees')
-          .select('id')
-          .eq('employee_id', payload.employee_id)
-          .maybeSingle()
+      const url = employee ? `/api/employees/${employee.id}` : '/api/employees'
+      const res = await fetch(url, {
+        method: employee ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
 
-        if (existing) {
-          toast.error('Employee ID already exists')
-          setSaving(false)
-          return
-        }
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Failed to save employee')
 
-        const { error } = await supabase.from('employees').insert(payload)
-        if (error) throw error
-        toast.success('Employee added successfully')
-      } else {
-        if (payload.employee_id !== employee.employee_id) {
-          const { data: existing } = await supabase
-            .from('employees')
-            .select('id')
-            .eq('employee_id', payload.employee_id)
-            .neq('id', employee.id)
-            .maybeSingle()
-
-          if (existing) {
-            toast.error('Employee ID already exists')
-            setSaving(false)
-            return
-          }
-        }
-
-        const { error } = await supabase
-          .from('employees')
-          .update(payload)
-          .eq('id', employee.id)
-        if (error) throw error
-        toast.success('Employee updated successfully')
-      }
-
+      toast.success(employee ? 'Employee updated successfully' : 'Employee added successfully')
       onOpenChange(false)
       onSuccess()
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to save employee'
-      toast.error(message)
+      toast.error(getErrorMessage(err, 'Failed to save employee'))
     } finally {
       setSaving(false)
     }
@@ -166,7 +146,7 @@ export default function EmployeeForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{employee ? 'Edit Employee' : 'Add Employee'}</DialogTitle>
         </DialogHeader>
@@ -206,11 +186,12 @@ export default function EmployeeForm({
             />
           </div>
           <div className="space-y-2">
-            <Label>Email</Label>
+            <Label>Login Email *</Label>
             <Input
               type="email"
               value={form.email}
               onChange={(e) => update('email', e.target.value)}
+              required
             />
           </div>
           <div className="space-y-2">
@@ -271,6 +252,17 @@ export default function EmployeeForm({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label>{employee ? 'Reset Password (optional)' : 'Initial Password *'}</Label>
+            <Input
+              type="password"
+              value={form.password}
+              onChange={(e) => update('password', e.target.value)}
+              placeholder={employee ? 'Leave blank to keep current password' : 'Min 6 characters'}
+              required={!employee}
+              minLength={employee ? undefined : 6}
+            />
           </div>
           <DialogFooter className="sm:col-span-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

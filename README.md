@@ -57,7 +57,8 @@ PayGen is an internal admin tool that allows HR/admin teams to:
 ## Tech Stack
 
 - **Frontend:** Next.js 14 (App Router) + TypeScript + Tailwind CSS + shadcn/ui
-- **Backend/Database:** Supabase (PostgreSQL + Storage)
+- **Backend/Database:** Neon PostgreSQL + Prisma ORM
+- **Auth:** NextAuth (credentials, admin + employee roles)
 - **PDF Generation:** Browser window.print() with print CSS
 - **Excel Parsing:** xlsx library
 - **Icons:** lucide-react
@@ -66,6 +67,16 @@ PayGen is an internal admin tool that allows HR/admin teams to:
 ---
 
 ## Features
+
+### Employee Portal
+- Login with admin-provided credentials
+- Check-in / check-out attendance
+- Submit leave requests (admin approves)
+
+### Admin Panel
+- Create employees with login email + password
+- Generate payslips and letters
+- Review attendance and approve/reject leave requests
 
 ### Employee Management
 - Add employees manually with full details
@@ -118,77 +129,96 @@ Net Pay = Actual Gross - PF - Custom Deductions
 ## Project Structure
 
 /app
-  /employees     → Employee management
-  /payslip       → Payslip generator
-  /letters       → Letter generator
-  /settings      → Company settings
-
-/components
-  PayslipPreview.tsx      → Template 1: Corporate Standard
-  PayslipPreviewT2.tsx    → Template 2: Minimal Elegant
-  PayslipPreviewT3.tsx    → Template 3: Modern Corporate
-  LetterPreview.tsx       → Letters
+  /login           → Login page
+  /employees       → Admin: employee management
+  /payslip         → Admin: payslip generator
+  /letters         → Admin: letter generator
+  /settings        → Admin: company settings
+  /admin           → Admin: attendance & leave approvals
+  /employee        → Employee portal (dashboard, attendance, leaves)
+  /api             → Server API routes
 
 /lib
-  supabase.ts         → Supabase client
-  salaryCalc.ts       → Salary logic
-  numberToWords.ts    → Indian number to words
-  utils.ts            → Helpers
+  prisma.ts         → Prisma client
+  auth.ts           → NextAuth config
+  salaryCalc.ts     → Salary logic
+  numberToWords.ts  → Indian number to words
+  utils.ts          → Helpers
 
-/context
-  SettingsContext.tsx → Global settings
-
-/supabase
-  schema.sql          → Run this in Supabase SQL editor
+/prisma
+  schema.prisma     → Database schema
+  seed.ts           → Admin user seed
 
 ---
 
-## Supabase Setup
+## Database Setup (Neon PostgreSQL)
 
-1. Create project at supabase.com
-2. Run /supabase/schema.sql in SQL Editor
-3. Create public storage bucket named company-assets
-4. Copy Project URL and anon key
+1. Create a project at [neon.tech](https://neon.tech)
+2. Copy the connection string to `.env` as `DATABASE_URL`
+3. Run:
+
+```bash
+npm install
+npx prisma db push
+npm run db:seed
+```
+
+Default admin: `admin@company.com` / `Admin@123`
 
 ---
 
 ## Environment Variables
 
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key_here
+```env
+DATABASE_URL=postgresql://...
+NEXTAUTH_SECRET=<random-32-char-string>
+NEXTAUTH_URL=http://localhost:3000
+```
 
 ---
 
 ## Getting Started
 
+```bash
 npm install
+npx prisma db push
+npm run db:seed
 npm run dev
+```
 
-Open http://localhost:3000
+Open http://localhost:3000 and sign in as admin.
 
 ---
 
 ## Deployment
 
-Push to GitHub → Import on vercel.com → Add env variables → Deploy
+Push to GitHub → Import on vercel.com → Add `DATABASE_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL` → Deploy
 
 ---
 
 ## Workflow
 
+**Admin**
 1. Settings → Add logo, signature, company info
-2. Employees → Add manually or upload Excel
+2. Employees → Add manually (with login email + password) or upload Excel
 3. Payslip → Select template, search employee, generate, download PDF
 4. Letters → Select type, search employee, generate, download PDF
+5. Admin → Attendance / Leave Requests → Review employee activity
+
+**Employee**
+1. Login with credentials provided by admin
+2. Dashboard → Check in / check out
+3. My Leaves → Submit leave requests
 
 ---
 
 ## Notes
 
-- No authentication — internal admin use only
+- Admin creates employee accounts with email + initial password
+- Professional Tax (₹200) applied automatically on payslips
 - All documents marked as system-generated
 - PDF via browser print (Ctrl+P → Save as PDF)
-- Decimal values always shown (e.g. 10,368.91)
+- Logo/signature uploads stored in `public/uploads/company/` (use S3/R2 for production on Vercel)
 
 ---
 

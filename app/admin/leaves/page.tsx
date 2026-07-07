@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { getErrorMessage } from '@/lib/utils'
+import type { Employee } from '@/types'
+import AddHistoricalLeaveForm from '@/components/admin/AddHistoricalLeaveForm'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -28,6 +30,7 @@ type LeaveRequest = {
 
 export default function AdminLeavesPage() {
   const [leaves, setLeaves] = useState<LeaveRequest[]>([])
+  const [employees, setEmployees] = useState<Employee[]>([])
   const [loading, setLoading] = useState(true)
   const [notes, setNotes] = useState<Record<string, string>>({})
   const [acting, setActing] = useState<string | null>(null)
@@ -35,9 +38,13 @@ export default function AdminLeavesPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch('/api/leaves')
-      if (!res.ok) throw new Error('Failed to load leaves')
-      setLeaves(await res.json())
+      const [leavesRes, empRes] = await Promise.all([
+        fetch('/api/leaves'),
+        fetch('/api/employees'),
+      ])
+      if (!leavesRes.ok) throw new Error('Failed to load leaves')
+      setLeaves(await leavesRes.json())
+      if (empRes.ok) setEmployees(await empRes.json())
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, 'Failed to load leaves'))
     } finally {
@@ -69,11 +76,15 @@ export default function AdminLeavesPage() {
   }
 
   return (
-    <div>
-      <header className="mb-6">
+    <div className="space-y-8">
+      <header>
         <h1 className="text-xl font-semibold text-text-primary">Leave Requests</h1>
-        <p className="mt-1 text-sm text-text-secondary">Approve or reject employee leave requests</p>
+        <p className="mt-1 text-sm text-text-secondary">
+          Approve requests or backfill historical leave from before the app was used
+        </p>
       </header>
+
+      <AddHistoricalLeaveForm employees={employees} onSuccess={load} />
 
       <div className="rounded-xl border border-border bg-background">
         <Table>

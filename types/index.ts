@@ -1,4 +1,5 @@
 import type { SalaryCalculation, SalaryLineItem } from '@/lib/salaryCalc'
+import type { LeaveDetailRow } from '@/lib/leaveDetails'
 
 export interface Employee {
   id: string
@@ -58,6 +59,7 @@ export interface PayslipPreviewProps {
   payDate: string
   fromDate: string
   toDate: string
+  leaveDetails?: LeaveDetailRow[]
 }
 
 export interface PayslipData {
@@ -67,12 +69,15 @@ export interface PayslipData {
   to_date: string
   lop_days: number
   pay_date: string
-  overtime_hours: number
   final_settlement: number
   custom_deductions: CustomDeduction[]
   reimbursements: Reimbursement[]
   showTaxPage: boolean
   selectedTemplate: PayslipTemplateId
+  /** null = auto-calculated from gross salary */
+  medical_allowance: number | null
+  /** null = auto 12% of basic */
+  pf_amount: number | null
 }
 
 export interface LetterData {

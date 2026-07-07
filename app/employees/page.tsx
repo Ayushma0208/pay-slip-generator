@@ -1,10 +1,14 @@
 'use client'
 
+import Link from 'next/link'
 import { useCallback, useEffect, useState } from 'react'
-import { Pencil, Plus, Trash2, Upload, Users } from 'lucide-react'
+import { Pencil, Plus, Trash2, Upload, Users, Eye } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { formatCurrency, getErrorMessage, getInitials } from '@/lib/utils'
 import type { Employee } from '@/types'
+import type { MonthlyLeaveSummary } from '@/lib/leavePolicy'
+
+type EmployeeWithSummary = Employee & { pay_summary?: MonthlyLeaveSummary }
 import EmployeeForm from '@/components/EmployeeForm'
 import ExcelUpload from '@/components/ExcelUpload'
 import { Button } from '@/components/ui/button'
@@ -28,12 +32,12 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 
-function mapEmployee(row: Record<string, unknown>): Employee {
-  return row as unknown as Employee
+function mapEmployee(row: Record<string, unknown>): EmployeeWithSummary {
+  return row as unknown as EmployeeWithSummary
 }
 
 export default function EmployeesPage() {
-  const [employees, setEmployees] = useState<Employee[]>([])
+  const [employees, setEmployees] = useState<EmployeeWithSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [formOpen, setFormOpen] = useState(false)
   const [excelOpen, setExcelOpen] = useState(false)
@@ -129,6 +133,7 @@ export default function EmployeesPage() {
                 <TableHead>Designation</TableHead>
                 <TableHead>Department</TableHead>
                 <TableHead>Gross Salary</TableHead>
+                <TableHead>Paid Leave Left</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -160,7 +165,22 @@ export default function EmployeesPage() {
                   <TableCell className="font-semibold text-text-primary">
                     {formatCurrency(Number(emp.gross_salary))}
                   </TableCell>
+                  <TableCell>
+                    <span className="font-medium text-green-700">
+                      {emp.pay_summary?.paidLeaveRemaining ?? 0}d
+                    </span>
+                  </TableCell>
                   <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="iconLg"
+                      className="text-text-secondary hover:bg-accent-light hover:text-accent"
+                      asChild
+                    >
+                      <Link href={`/employees/${emp.id}`} aria-label="View employee">
+                        <Eye className="h-5 w-5" strokeWidth={2.5} />
+                      </Link>
+                    </Button>
                     <Button
                       variant="ghost"
                       size="iconLg"

@@ -34,17 +34,24 @@ const employeeNav = [
   { href: '/employee/leaves', label: 'My Leaves', icon: CalendarDays },
 ]
 
+const adminPaths = ['/employees', '/payslip', '/letters', '/settings', '/admin']
+
 export default function Sidebar() {
   const pathname = usePathname()
-  const { data: session } = useSession()
-  const navItems = session?.user?.role === 'ADMIN' ? adminNav : employeeNav
+  const { data: session, status } = useSession()
+  const onAdminPath = adminPaths.some(
+    (p) => pathname === p || pathname.startsWith(p + '/')
+  )
+  const showAdminNav =
+    session?.user?.role === 'ADMIN' || (status === 'loading' && onAdminPath)
+  const navItems = showAdminNav ? adminNav : employeeNav
 
   return (
     <aside className="flex h-screen w-[220px] shrink-0 flex-col border-r border-border bg-background print:hidden">
       <div className="px-4 pb-4 pt-5">
         <h1 className="text-[15px] font-bold text-text-primary">PayGen</h1>
         <p className="mt-0.5 text-[11px] text-text-muted">
-          {session?.user?.role === 'ADMIN' ? 'Admin Panel' : 'Employee Portal'}
+          {showAdminNav ? 'Admin Panel' : 'Employee Portal'}
         </p>
       </div>
       <div className="mb-2 border-b border-border" />

@@ -38,10 +38,15 @@ export default function EmployeeLeavesPage() {
     from_date: '',
     to_date: '',
     reason: '',
+    half_day: false,
   })
 
-  const leaveDays =
-    form.from_date && form.to_date ? calculateLeaveDays(form.from_date, form.to_date) : 0
+  const isSingleDay = form.from_date && form.to_date && form.from_date === form.to_date
+  const leaveDays = form.from_date && form.to_date
+    ? form.half_day && isSingleDay
+      ? 0.5
+      : calculateLeaveDays(form.from_date, form.to_date)
+    : 0
 
   const updateDates = (field: 'from_date' | 'to_date', value: string) => {
     setForm((f) => ({ ...f, [field]: value }))
@@ -79,12 +84,12 @@ export default function EmployeeLeavesPage() {
       const res = await fetch('/api/leaves', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, days: leaveDays }),
+        body: JSON.stringify({ ...form, half_day: form.half_day && isSingleDay }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to submit leave')
       toast.success('Leave request submitted')
-      setForm({ leave_type: LEAVE_TYPES[0], from_date: '', to_date: '', reason: '' })
+      setForm({ leave_type: LEAVE_TYPES[0], from_date: '', to_date: '', reason: '', half_day: false })
       load()
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, 'Failed to submit leave'))
@@ -99,6 +104,11 @@ export default function EmployeeLeavesPage() {
         <h1 className="text-xl font-semibold text-text-primary">My Leaves</h1>
         <p className="mt-1 text-sm text-text-secondary">Submit and track leave requests</p>
       </header>
+
+      <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+        <strong>Paid leave policy:</strong> 1 full day + 1 half day per month are paid. Unused paid
+        leave from the previous month carries forward. Extra leave days are deducted from monthly pay.
+      </div>
 
       <form onSubmit={handleSubmit} className="rounded-xl border border-border bg-background p-6 space-y-4">
         <h2 className="font-semibold">Request Leave</h2>
@@ -140,6 +150,20 @@ export default function EmployeeLeavesPage() {
               required
             />
           </div>
+          {isSingleDay && (
+            <div className="flex items-center gap-2 sm:col-span-2">
+              <input
+                type="checkbox"
+                id="half_day"
+                checked={form.half_day}
+                onChange={(e) => setForm((f) => ({ ...f, half_day: e.target.checked }))}
+                className="h-4 w-4 rounded border-border"
+              />
+              <Label htmlFor="half_day" className="cursor-pointer font-normal">
+                Half day leave (0.5 day)
+              </Label>
+            </div>
+          )}
         </div>
         <div className="space-y-2">
           <Label>Reason</Label>

@@ -2,9 +2,22 @@
 
 import { numberToIndianWords } from '@/lib/numberToWords'
 import { formatDateDDMonthYYYY } from '@/lib/utils'
+import type { LeaveDetailRow } from '@/lib/leaveDetails'
 import type { PayslipPreviewProps } from '@/types'
 
 const FONT = 'Arial, Helvetica, sans-serif'
+const PAGE_STYLE: React.CSSProperties = {
+  width: 794,
+  minHeight: 1123,
+  height: 1123,
+  backgroundColor: '#fff',
+  fontFamily: FONT,
+  fontSize: 11,
+  color: '#000',
+  padding: '32px 40px',
+  boxSizing: 'border-box',
+  overflow: 'hidden',
+}
 
 function fmt(n: number): string {
   return n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -12,6 +25,11 @@ function fmt(n: number): string {
 
 function fmtDays(n: number): string {
   return n.toLocaleString('en-IN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+}
+
+function fmtLeave(n: number): string {
+  if (n === 0) return '0'
+  return n.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
@@ -45,22 +63,101 @@ function LineRow({
       style={{
         display: 'flex',
         justifyContent: 'space-between',
+        gap: 12,
         padding: '3px 0',
         fontSize: 11,
         fontWeight: bold ? 700 : 400,
       }}
     >
-      <span>{label}</span>
-      {amount !== undefined ? <span>{fmt(amount)}</span> : null}
+      <span style={{ flex: 1, minWidth: 0 }}>{label}</span>
+      {amount !== undefined ? <span style={{ flexShrink: 0 }}>{fmt(amount)}</span> : null}
     </div>
   )
 }
 
 function GridCell({ label, value }: { label: string; value: string }) {
   return (
-    <div style={{ padding: '4px 0' }}>
-      <div style={{ fontSize: 10, color: '#6b7280', marginBottom: 2 }}>{label}</div>
-      <div style={{ fontSize: 11, fontWeight: 600 }}>{value || '—'}</div>
+    <div style={{ padding: '4px 0', minWidth: 0 }}>
+      <div
+        style={{
+          fontSize: 10,
+          color: '#6b7280',
+          marginBottom: 2,
+          lineHeight: 1.3,
+          whiteSpace: 'normal',
+        }}
+      >
+        {label}
+      </div>
+      <div style={{ fontSize: 11, fontWeight: 600, lineHeight: 1.3, wordBreak: 'break-word' }}>
+        {value || '—'}
+      </div>
+    </div>
+  )
+}
+
+function LeaveDetailsPage({ rows }: { rows: LeaveDetailRow[] }) {
+  const thStyle: React.CSSProperties = {
+    border: '1px solid #d1d5db',
+    padding: '8px 6px',
+    fontSize: 10,
+    fontWeight: 700,
+    textTransform: 'uppercase',
+    textAlign: 'center',
+    backgroundColor: '#fff',
+    lineHeight: 1.3,
+  }
+
+  const tdStyle: React.CSSProperties = {
+    border: '1px solid #d1d5db',
+    padding: '7px 6px',
+    fontSize: 10,
+    textAlign: 'center',
+    lineHeight: 1.3,
+  }
+
+  const tdLeftStyle: React.CSSProperties = {
+    ...tdStyle,
+    textAlign: 'left',
+    fontWeight: 500,
+  }
+
+  return (
+    <div className="payslip-t4-page payslip-page" style={PAGE_STYLE}>
+      <SectionTitle>Leave Details</SectionTitle>
+      <table
+        style={{
+          width: '100%',
+          borderCollapse: 'collapse',
+          marginTop: 8,
+          tableLayout: 'fixed',
+        }}
+      >
+        <thead>
+          <tr>
+            <th style={{ ...thStyle, width: '22%', textAlign: 'left' }}>Leave Type</th>
+            <th style={thStyle}>Opening</th>
+            <th style={thStyle}>Accrued</th>
+            <th style={thStyle}>Credit</th>
+            <th style={thStyle}>Availed</th>
+            <th style={thStyle}>Expired/Encashed</th>
+            <th style={thStyle}>Closing</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.leaveType}>
+              <td style={tdLeftStyle}>{row.leaveType}</td>
+              <td style={tdStyle}>{fmtLeave(row.opening)}</td>
+              <td style={tdStyle}>{fmtLeave(row.accrued)}</td>
+              <td style={tdStyle}>{fmtLeave(row.credit)}</td>
+              <td style={tdStyle}>{fmtLeave(row.availed)}</td>
+              <td style={tdStyle}>{fmtLeave(row.expiredEncashed)}</td>
+              <td style={tdStyle}>{fmtLeave(row.closing)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }
@@ -72,6 +169,7 @@ export default function PayslipPreviewT4({
   month,
   year,
   customDeductions,
+  leaveDetails = [],
 }: PayslipPreviewProps) {
   if (!employee || !calc) {
     return (
@@ -120,27 +218,13 @@ export default function PayslipPreviewT4({
       id="printable-document"
       className="payslip-t4-root"
       style={{
-        width: '100%',
-        display: 'flex',
-        justifyContent: 'center',
+        width: 794,
         backgroundColor: '#fff',
       }}
     >
-      <div
-        className="payslip-t4-page"
-        style={{
-          width: 794,
-          minHeight: 1123,
-          backgroundColor: '#fff',
-          fontFamily: FONT,
-          fontSize: 11,
-          color: '#000',
-          padding: '32px 40px',
-          boxSizing: 'border-box',
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div>
+      <div className="payslip-t4-page payslip-page" style={PAGE_STYLE}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
+          <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>{emp.name}</div>
             <div style={{ fontSize: 12, fontWeight: 700 }}>{settings.company_name || 'Company Name'}</div>
             {settings.address ? (
@@ -153,7 +237,8 @@ export default function PayslipPreviewT4({
             <img
               src={settings.logo_url}
               alt="Logo"
-              style={{ height: 56, objectFit: 'contain' }}
+              crossOrigin="anonymous"
+              style={{ height: 56, objectFit: 'contain', flexShrink: 0 }}
             />
           ) : null}
         </div>
@@ -175,7 +260,7 @@ export default function PayslipPreviewT4({
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
+            gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
             gap: '8px 16px',
             marginBottom: 8,
           }}
@@ -196,22 +281,21 @@ export default function PayslipPreviewT4({
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(5, 1fr)',
-            gap: 8,
+            gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+            gap: '8px 12px',
             marginBottom: 4,
           }}
         >
           <GridCell label="Actual Payable Days" value={fmtDays(c.effectivePaidDays)} />
-          <GridCell label="Total Working Days" value={fmtDays(c.totalDaysInMonth)} />
+          <GridCell label="Total Working Days" value={fmtDays(c.totalWorkingDays)} />
           <GridCell label="Loss Of Pay Days" value={fmtDays(c.lopDays)} />
-          <GridCell label="Days Payable" value={String(c.effectivePaidDays)} />
-          <GridCell label="Overtime Hours" value={fmtDays(c.overtimeHours)} />
+          <GridCell label="Days Payable" value={String(c.daysPayable)} />
         </div>
 
         <hr style={hrLine} />
 
         <div style={{ display: 'flex', gap: 24 }}>
-          <div style={{ flex: 1 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <SectionTitle>Earnings</SectionTitle>
             {earnings.map((e) => (
               <LineRow key={e.label} label={e.label} amount={e.amount} />
@@ -219,7 +303,7 @@ export default function PayslipPreviewT4({
             <LineRow label="Total Earnings (A)" amount={c.totalEarningsA} bold />
           </div>
 
-          <div style={{ flex: 1 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <SectionTitle>PF Deductions</SectionTitle>
             <LineRow label="PF Employee" amount={c.pfEmployee} />
             <LineRow label="Total Pf Deductions (B)" amount={c.totalPfDeductionsB} bold />
@@ -255,7 +339,7 @@ export default function PayslipPreviewT4({
           }}
         >
           <LineRow label="Net Salary Payable (A - B - C + D)" amount={c.netPay} bold />
-          <div style={{ fontSize: 11, fontWeight: 700, marginTop: 4 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, marginTop: 6, lineHeight: 1.4 }}>
             Net Salary in words: {netWords}
           </div>
         </div>
@@ -273,7 +357,7 @@ export default function PayslipPreviewT4({
           }}
         >
           <LineRow label="Total Cost (A + E)" amount={c.totalCost} bold />
-          <div style={{ fontSize: 11, fontWeight: 700, marginTop: 4 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, marginTop: 6, lineHeight: 1.4 }}>
             Total Cost in words: {costWords}
           </div>
         </div>
@@ -294,6 +378,8 @@ export default function PayslipPreviewT4({
           This is a system generated payslip and doesn&apos;t need a signature
         </div>
       </div>
+
+      <LeaveDetailsPage rows={leaveDetails} />
     </div>
   )
 }

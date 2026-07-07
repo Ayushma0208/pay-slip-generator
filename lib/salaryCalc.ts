@@ -1,14 +1,27 @@
+import { countWorkingDaysInRange } from '@/lib/workingDays'
+
 export const PROFESSIONAL_TAX = 200
 
 const MEDICAL_RATIO = 1250 / 52000
 const CONVEYANCE_RATIO = 1600 / 52000
+
+export function getDefaultMedicalAllowance(grossSalary: number): number {
+  return parseFloat((grossSalary * MEDICAL_RATIO).toFixed(2))
+}
+
+export function getDefaultPfAmount(grossSalary: number): number {
+  return parseFloat((grossSalary * 0.5 * 0.12).toFixed(2))
+}
 
 export type SalaryLineItem = { label: string; amount: number }
 
 export type SalaryCalculationOptions = {
   finalSettlement?: number
   reimbursements?: SalaryLineItem[]
-  overtimeHours?: number
+  /** Override standard medical allowance (monthly gross component) */
+  medicalAllowance?: number | null
+  /** Override PF employee deduction (fixed amount instead of 12% of basic) */
+  pfAmount?: number | null
 }
 
 export type SalaryCalculation = ReturnType<typeof calculateSalary>
@@ -22,19 +35,20 @@ export function calculateSalary(
   options: SalaryCalculationOptions = {}
 ) {
   const from = new Date(fromDate + 'T12:00:00')
-  const to = new Date(toDate + 'T12:00:00')
   const year = from.getFullYear()
   const month = from.getMonth()
-  const totalDaysInMonth = new Date(year, month + 1, 0).getDate()
+  const calendarDaysInMonth = new Date(year, month + 1, 0).getDate()
 
-  const msPerDay = 1000 * 60 * 60 * 24
-  const daysInRange = Math.floor((to.getTime() - from.getTime()) / msPerDay) + 1
-  const effectivePaidDays = Math.max(0, daysInRange - lopDays)
-  const ratio = totalDaysInMonth > 0 ? effectivePaidDays / totalDaysInMonth : 1
+  const totalWorkingDays = countWorkingDaysInRange(fromDate, toDate)
+  const effectivePaidDays = parseFloat(Math.max(0, totalWorkingDays - lopDays).toFixed(1))
+  const ratio = totalWorkingDays > 0 ? effectivePaidDays / totalWorkingDays : 1
 
   const stdBasic = parseFloat((grossSalary * 0.5).toFixed(2))
   const stdHRA = parseFloat((stdBasic * 0.4).toFixed(2))
-  const stdMedical = parseFloat((grossSalary * MEDICAL_RATIO).toFixed(2))
+  const stdMedical =
+    options.medicalAllowance != null && !Number.isNaN(options.medicalAllowance)
+      ? parseFloat(Number(options.medicalAllowance).toFixed(2))
+      : parseFloat((grossSalary * MEDICAL_RATIO).toFixed(2))
   const stdConveyance = parseFloat((grossSalary * CONVEYANCE_RATIO).toFixed(2))
   const stdSpecial = parseFloat(
     (grossSalary - stdBasic - stdHRA - stdMedical - stdConveyance).toFixed(2)
@@ -50,7 +64,10 @@ export function calculateSalary(
   const salaryEarnings = actualBasic + actualHRA + actualMedical + actualConveyance + actualSpecial
   const totalEarningsA = parseFloat((salaryEarnings + finalSettlement).toFixed(2))
 
-  const pfEmployee = parseFloat((actualBasic * 0.12).toFixed(2))
+  const pfEmployee =
+    options.pfAmount != null && !Number.isNaN(options.pfAmount)
+      ? parseFloat((Number(options.pfAmount) * ratio).toFixed(2))
+      : parseFloat((actualBasic * 0.12).toFixed(2))
   const totalPfDeductionsB = pfEmployee
 
   const professionalTax = PROFESSIONAL_TAX
@@ -78,8 +95,6 @@ export function calculateSalary(
     (totalEarningsA - totalPfDeductionsB - totalTaxesDeductionsC + totalReimbursementsD).toFixed(2)
   )
   const totalCost = parseFloat((totalEarningsA + totalOtherComponentsE).toFixed(2))
-
-  const overtimeHours = parseFloat(String(options.overtimeHours ?? 0)) || 0
 
   return {
     grossSalary,
@@ -112,10 +127,10 @@ export function calculateSalary(
     totalCost,
     actualGross: totalEarningsA,
     effectivePaidDays,
+    daysPayable: effectivePaidDays,
     lopDays,
-    totalDaysInMonth,
-    daysInRange,
-    overtimeHours,
+    totalWorkingDays,
+    totalDaysInMonth: calendarDaysInMonth,
     fromDate,
     toDate,
   }

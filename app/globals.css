@@ -142,6 +142,46 @@
     print-color-adjust: exact !important;
   }
 
+  /* Template 4 — two A4 pages (payslip + leave details) */
+  #printable-document.payslip-t4-root {
+    position: absolute !important;
+    width: 210mm !important;
+    max-width: 210mm !important;
+    left: 0 !important;
+    top: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  #printable-document.payslip-t4-root .payslip-t4-page {
+    width: 210mm !important;
+    max-width: 210mm !important;
+    min-height: 277mm !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 8mm 10mm !important;
+    box-sizing: border-box !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    overflow: visible !important;
+  }
+
+  #printable-document.payslip-t4-root .payslip-t4-page + .payslip-t4-page {
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+
+  #printable-document.payslip-t4-root table {
+    width: 100% !important;
+    table-layout: fixed !important;
+  }
+
+  #printable-document.payslip-t4-root th,
+  #printable-document.payslip-t4-root td {
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+  }
+
   /* Letters — fit A4, no clipping, footer visible in PDF */
   #printable-document.letter-root {
     position: absolute !important;

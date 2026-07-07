@@ -63,13 +63,16 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json()
-  const { leave_type, from_date, to_date, reason } = body
+  const { leave_type, from_date, to_date, reason, half_day } = body
 
   if (!leave_type || !from_date || !to_date) {
     return NextResponse.json({ error: 'Leave type and dates are required' }, { status: 400 })
   }
 
-  const days = calculateLeaveDays(from_date, to_date)
+  let days = calculateLeaveDays(from_date, to_date)
+  if (half_day && from_date === to_date) {
+    days = 0.5
+  }
   if (days <= 0) {
     return NextResponse.json({ error: 'To date must be on or after from date' }, { status: 400 })
   }

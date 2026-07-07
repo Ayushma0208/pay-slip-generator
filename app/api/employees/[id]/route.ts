@@ -3,8 +3,90 @@ import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/api-auth'
 import { mapEmployee } from '@/lib/mappers'
 import { hashPassword } from '@/lib/password'
+import { calculateMonthlyLeaveSummary } from '@/lib/leavePolicy'
 
 type RouteContext = { params: { id: string } }
+
+function formatAttendance(row: {
+  id: string
+  date: Date
+  checkIn: Date
+  checkOut: Date | null
+  notes: string | null
+}) {
+  return {
+    id: row.id,
+    date: row.date.toISOString().split('T')[0],
+    check_in: row.checkIn.toISOString(),
+    check_out: row.checkOut?.toISOString() ?? null,
+    notes: row.notes,
+  }
+}
+
+function formatLeave(row: {
+  id: string
+  leaveType: string
+  fromDate: Date
+  toDate: Date
+  days: { toString(): string }
+  reason: string | null
+  status: string
+  adminNote: string | null
+  reviewedAt: Date | null
+  createdAt: Date
+}) {
+  return {
+    id: row.id,
+    leave_type: row.leaveType,
+    from_date: row.fromDate.toISOString().split('T')[0],
+    to_date: row.toDate.toISOString().split('T')[0],
+    days: Number(row.days),
+    reason: row.reason,
+    status: row.status,
+    admin_note: row.adminNote,
+    reviewed_at: row.reviewedAt?.toISOString() ?? null,
+    created_at: row.createdAt.toISOString(),
+  }
+}
+
+export async function GET(_request: Request, { params }: RouteContext) {
+  const { error } = await requireAdmin()
+  if (error) return error
+
+  const employee = await prisma.employee.findUnique({
+    where: { id: params.id },
+    include: {
+      attendanceRecords: { orderBy: [{ date: 'desc' }, { checkIn: 'desc' }] },
+      leaveRequests: { orderBy: { createdAt: 'desc' } },
+    },
+  })
+
+  if (!employee) {
+    return NextResponse.json({ error: 'Employee not found' }, { status: 404 })
+  }
+
+  const leaveInputs = employee.leaveRequests.map((l) => ({
+    fromDate: l.fromDate,
+    toDate: l.toDate,
+    days: Number(l.days),
+    status: l.status,
+  }))
+
+  return NextResponse.json({
+    employee: mapEmployee(employee),
+    created_at: employee.createdAt.toISOString(),
+    attendance: employee.attendanceRecords.map(formatAttendance),
+    leaves: employee.leaveRequests.map(formatLeave),
+    pay_summary: calculateMonthlyLeaveSummary(
+      Number(employee.grossSalary),
+      leaveInputs,
+      undefined,
+      undefined,
+      employee.joiningDate,
+      employee.createdAt
+    ),
+  })
+}
 
 export async function PUT(request: Request, { params }: RouteContext) {
   const { error } = await requireAdmin()

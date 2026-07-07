@@ -38,11 +38,17 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const from = searchParams.get('from')
   const to = searchParams.get('to')
+  const employeeIdParam = searchParams.get('employee_id')
 
-  const where =
-    session!.user.role === UserRole.ADMIN
-      ? {}
-      : { employeeId: session!.user.employeeId! }
+  let where: { employeeId?: string } = {}
+
+  if (session!.user.role === UserRole.ADMIN) {
+    if (employeeIdParam) {
+      where = { employeeId: employeeIdParam }
+    }
+  } else {
+    where = { employeeId: session!.user.employeeId! }
+  }
 
   const dateFilter: { gte?: Date; lte?: Date } = {}
   if (from) dateFilter.gte = new Date(from + 'T00:00:00')

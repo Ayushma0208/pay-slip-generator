@@ -3,13 +3,39 @@ import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/api-auth'
 import { mapEmployee } from '@/lib/mappers'
 import { hashPassword } from '@/lib/password'
+import { calculateMonthlyLeaveSummary, type LeaveRecordInput } from '@/lib/leavePolicy'
 
 export async function GET() {
   const { error } = await requireAdmin()
   if (error) return error
 
-  const rows = await prisma.employee.findMany({ orderBy: { name: 'asc' } })
-  return NextResponse.json(rows.map(mapEmployee))
+  const rows = await prisma.employee.findMany({
+    orderBy: { name: 'asc' },
+    include: { leaveRequests: true },
+  })
+
+  return NextResponse.json(
+    rows.map((row) => {
+      const leaveInputs: LeaveRecordInput[] = row.leaveRequests.map((l) => ({
+        fromDate: l.fromDate,
+        toDate: l.toDate,
+        days: Number(l.days),
+        status: l.status,
+      }))
+
+      return {
+        ...mapEmployee(row),
+        pay_summary: calculateMonthlyLeaveSummary(
+          Number(row.grossSalary),
+          leaveInputs,
+          undefined,
+          undefined,
+          row.joiningDate,
+          row.createdAt
+        ),
+      }
+    })
+  )
 }
 
 export async function POST(request: Request) {

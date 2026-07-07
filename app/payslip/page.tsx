@@ -4,8 +4,15 @@ import { useCallback, useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useSettings } from '@/context/SettingsContext'
-import { calculateSalary } from '@/lib/salaryCalc'
+import { calculateSalary, getDefaultMedicalAllowance, getDefaultPfAmount } from '@/lib/salaryCalc'
+import { downloadPayslipPdf } from '@/lib/downloadPayslip'
+import { countWorkingDaysInRange } from '@/lib/workingDays'
 import { getErrorMessage, MONTHS, getMonthDateRange } from '@/lib/utils'
+import { calculateMonthlyLeaveSummary, type LeaveRecordInput } from '@/lib/leavePolicy'
+import {
+  buildLeaveDetailsTable,
+  type LeaveRecordWithType,
+} from '@/lib/leaveDetails'
 import PayslipPreviewT4 from '@/components/PayslipPreviewT4'
 import type { CustomDeduction, Employee, PayslipData, PayslipTemplateId, Reimbursement } from '@/types'
 import EmployeeSearch from '@/components/EmployeeSearch'
@@ -41,12 +48,13 @@ const defaultPayslip = (): PayslipData => ({
   to_date: initialRange.to_date,
   lop_days: 0,
   pay_date: today,
-  overtime_hours: 0,
   final_settlement: 0,
   custom_deductions: [],
   reimbursements: [],
   showTaxPage: false,
   selectedTemplate: 4,
+  medical_allowance: null,
+  pf_amount: null,
 })
 
 const TEMPLATES: {
@@ -76,6 +84,13 @@ export default function PayslipPage() {
   const [payslip, setPayslip] = useState<PayslipData>(defaultPayslip)
   const [generated, setGenerated] = useState(false)
   const [showTaxPage, setShowTaxPage] = useState(false)
+  const [leaveSummary, setLeaveSummary] = useState<ReturnType<typeof calculateMonthlyLeaveSummary> | null>(null)
+  const [employeeLeaves, setEmployeeLeaves] = useState<LeaveRecordWithType[]>([])
+  const [policyDates, setPolicyDates] = useState<{
+    joiningDate: Date | null
+    createdAt: Date | null
+  }>({ joiningDate: null, createdAt: null })
+  const [downloading, setDownloading] = useState(false)
 
   const fetchEmployees = useCallback(async () => {
     try {
@@ -91,6 +106,61 @@ export default function PayslipPage() {
   useEffect(() => {
     fetchEmployees()
   }, [fetchEmployees])
+
+  const loadLeaveSummary = useCallback(async (emp: Employee, month: string, year: string) => {
+    try {
+      const res = await fetch(`/api/employees/${emp.id}`)
+      if (!res.ok) return
+      const data = await res.json()
+      const monthIndex = MONTHS.indexOf(month as (typeof MONTHS)[number])
+      const y = parseInt(year, 10) || new Date().getFullYear()
+      const m = monthIndex >= 0 ? monthIndex : new Date().getMonth()
+
+      const leaveInputs: LeaveRecordInput[] = (data.leaves ?? []).map(
+        (l: { from_date: string; to_date: string; days: number; status: string; leave_type: string }) => ({
+          fromDate: new Date(l.from_date + 'T12:00:00'),
+          toDate: new Date(l.to_date + 'T12:00:00'),
+          days: l.days,
+          status: l.status,
+          leaveType: l.leave_type,
+        })
+      )
+
+      const joiningDate = data.employee?.joining_date
+        ? new Date(data.employee.joining_date + 'T12:00:00')
+        : null
+      const createdAt = data.created_at ? new Date(data.created_at) : null
+
+      setEmployeeLeaves(leaveInputs as LeaveRecordWithType[])
+      setPolicyDates({ joiningDate, createdAt })
+
+      const summary = calculateMonthlyLeaveSummary(
+        Number(emp.gross_salary),
+        leaveInputs,
+        y,
+        m,
+        joiningDate,
+        createdAt
+      )
+      setLeaveSummary(summary)
+      setPayslip((prev) => ({ ...prev, lop_days: summary.excessLeaveDays }))
+      setGenerated(false)
+    } catch {
+      setLeaveSummary(null)
+      setEmployeeLeaves([])
+      setPolicyDates({ joiningDate: null, createdAt: null })
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!selected) {
+      setLeaveSummary(null)
+      setEmployeeLeaves([])
+      setPolicyDates({ joiningDate: null, createdAt: null })
+      return
+    }
+    loadLeaveSummary(selected, payslip.month, payslip.year)
+  }, [selected, payslip.month, payslip.year, loadLeaveSummary])
 
   const updatePayslip = <K extends keyof PayslipData>(key: K, value: PayslipData[K]) => {
     setPayslip((prev) => ({ ...prev, [key]: value }))
@@ -174,10 +244,27 @@ export default function PayslipPage() {
           {
             finalSettlement: payslip.final_settlement,
             reimbursements: payslip.reimbursements,
-            overtimeHours: payslip.overtime_hours,
+            medicalAllowance: payslip.medical_allowance,
+            pfAmount: payslip.pf_amount,
           }
         )
       : null
+
+  const monthIndex = MONTHS.indexOf(payslip.month as (typeof MONTHS)[number])
+  const payslipYear = parseInt(payslip.year, 10) || new Date().getFullYear()
+  const payslipMonth = monthIndex >= 0 ? monthIndex : new Date().getMonth()
+
+  const leaveDetails =
+    leaveSummary && selected
+      ? buildLeaveDetailsTable(
+          employeeLeaves,
+          leaveSummary,
+          payslipYear,
+          payslipMonth,
+          policyDates.joiningDate,
+          policyDates.createdAt
+        )
+      : []
 
   const previewProps = {
     employee: selected,
@@ -190,9 +277,15 @@ export default function PayslipPage() {
     payDate: payslip.pay_date,
     fromDate: payslip.from_date,
     toDate: payslip.to_date,
+    leaveDetails,
   }
 
-  const handleGenerate = () => {
+  const workingDaysInPeriod =
+    payslip.from_date && payslip.to_date
+      ? countWorkingDaysInRange(payslip.from_date, payslip.to_date)
+      : null
+
+  const handleGenerate = async () => {
     if (!selected) {
       toast.error('Please select an employee')
       return
@@ -202,7 +295,34 @@ export default function PayslipPage() {
       return
     }
     setGenerated(true)
+    setDownloading(true)
     toast.success('Payslip generated')
+
+    await new Promise((resolve) => setTimeout(resolve, 600))
+
+    try {
+      const filename = `Payslip_${selected.employee_id}_${payslip.month}_${payslip.year}.pdf`
+      await downloadPayslipPdf(filename)
+      toast.success('Payslip downloaded')
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'Failed to download payslip'))
+    } finally {
+      setDownloading(false)
+    }
+  }
+
+  const handleDownload = async () => {
+    if (!selected) return
+    setDownloading(true)
+    try {
+      const filename = `Payslip_${selected.employee_id}_${payslip.month}_${payslip.year}.pdf`
+      await downloadPayslipPdf(filename)
+      toast.success('Payslip downloaded')
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'Failed to download payslip'))
+    } finally {
+      setDownloading(false)
+    }
   }
 
   return (
@@ -261,6 +381,13 @@ export default function PayslipPage() {
               selected={selected}
               onSelect={(emp) => {
                 setSelected(emp)
+                if (!emp) return
+                const gross = Number(emp.gross_salary)
+                setPayslip((prev) => ({
+                  ...prev,
+                  medical_allowance: getDefaultMedicalAllowance(gross),
+                  pf_amount: getDefaultPfAmount(gross),
+                }))
                 setGenerated(false)
               }}
             />
@@ -324,23 +451,29 @@ export default function PayslipPage() {
                 <Input
                   type="number"
                   min={0}
+                  step="0.5"
                   value={payslip.lop_days}
                   onChange={(e) =>
-                    updatePayslip('lop_days', parseInt(e.target.value, 10) || 0)
+                    updatePayslip('lop_days', parseFloat(e.target.value) || 0)
                   }
                 />
-              </div>
-              <div className="space-y-2">
-                <Label>Overtime Hours</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  step="0.1"
-                  value={payslip.overtime_hours}
-                  onChange={(e) =>
-                    updatePayslip('overtime_hours', parseFloat(e.target.value) || 0)
-                  }
-                />
+                {leaveSummary && (
+                  <p className="text-[11px] text-text-muted leading-relaxed">
+                    Approved: {leaveSummary.approvedLeaveDays}d · This month:{' '}
+                    {leaveSummary.monthlyAllowanceDays}d · Carry forward:{' '}
+                    {leaveSummary.carryForwardDays}d · Total paid allowance:{' '}
+                    {leaveSummary.paidAllowanceDays}d · Remaining:{' '}
+                    {leaveSummary.paidLeaveRemaining}d
+                    {leaveSummary.excessLeaveDays > 0 &&
+                      ` · Excess: ${leaveSummary.excessLeaveDays}d (auto-filled)`}
+                  </p>
+                )}
+                {workingDaysInPeriod != null && (
+                  <p className="text-[11px] text-text-muted">
+                    Total working days in period: {workingDaysInPeriod} (Sun off; 2nd &amp; 4th Sat
+                    off)
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Final Settlement</Label>
@@ -351,6 +484,46 @@ export default function PayslipPage() {
                   value={payslip.final_settlement || ''}
                   onChange={(e) =>
                     updatePayslip('final_settlement', parseFloat(e.target.value) || 0)
+                  }
+                />
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <SectionHeader title="Salary Components (Editable)" />
+            <p className="mb-3 text-[11px] text-text-muted">
+              Override medical allowance or PF amount for this payslip. Values pre-fill from gross
+              salary; edit as needed (e.g. PF ₹1,200).
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Medical Allowance (monthly)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={payslip.medical_allowance ?? ''}
+                  onChange={(e) =>
+                    updatePayslip(
+                      'medical_allowance',
+                      e.target.value === '' ? null : parseFloat(e.target.value) || 0
+                    )
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>PF Amount (monthly)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={payslip.pf_amount ?? ''}
+                  onChange={(e) =>
+                    updatePayslip(
+                      'pf_amount',
+                      e.target.value === '' ? null : parseFloat(e.target.value) || 0
+                    )
                   }
                 />
               </div>
@@ -474,16 +647,35 @@ export default function PayslipPage() {
           ) : null}
 
           <div className="space-y-3 pt-2">
-            <Button className="w-full" onClick={handleGenerate}>
-              Generate Payslip
+            <Button className="w-full" onClick={handleGenerate} disabled={downloading}>
+              {downloading ? 'Downloading…' : 'Generate Payslip'}
             </Button>
-            {generated && <PrintButton />}
+            {generated && (
+              <div className="flex gap-2">
+                <PrintButton className="flex-1" />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={handleDownload}
+                  disabled={downloading}
+                >
+                  Download PDF
+                </Button>
+              </div>
+            )}
           </div>
         </div>
 
         <div className="min-w-0 flex-1 lg:sticky lg:top-8 lg:self-start print:w-full">
           <DocumentPreviewFrame
-            pages={payslip.selectedTemplate === 1 && showTaxPage ? 2 : 1}
+            pages={
+              payslip.selectedTemplate === 1 && showTaxPage
+                ? 2
+                : payslip.selectedTemplate === 4
+                  ? 2
+                  : 1
+            }
           >
             {payslip.selectedTemplate === 1 ? <PayslipPreview {...previewProps} /> : null}
             {payslip.selectedTemplate === 2 ? <PayslipPreviewT2 {...previewProps} /> : null}

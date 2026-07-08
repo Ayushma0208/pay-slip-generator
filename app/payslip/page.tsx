@@ -24,6 +24,7 @@ import PrintButton from '@/components/PrintButton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { DOCUMENT_FONTS, DEFAULT_DOCUMENT_FONT } from '@/lib/documentFonts'
 import {
   Select,
   SelectContent,
@@ -91,6 +92,14 @@ export default function PayslipPage() {
     createdAt: Date | null
   }>({ joiningDate: null, createdAt: null })
   const [downloading, setDownloading] = useState(false)
+  const [documentFont, setDocumentFont] = useState<string>(
+    settings.document_font || DEFAULT_DOCUMENT_FONT
+  )
+
+  // Keep the local font selector in sync with saved Settings on first load.
+  useEffect(() => {
+    setDocumentFont(settings.document_font || DEFAULT_DOCUMENT_FONT)
+  }, [settings.document_font])
 
   const fetchEmployees = useCallback(async () => {
     try {
@@ -278,6 +287,7 @@ export default function PayslipPage() {
     fromDate: payslip.from_date,
     toDate: payslip.to_date,
     leaveDetails,
+    documentFontOverride: documentFont,
   }
 
   const workingDaysInPeriod =
@@ -372,6 +382,22 @@ export default function PayslipPage() {
                 )
               })}
             </div>
+          </div>
+
+          <div>
+            <SectionHeader title="Document Font" />
+            <Select value={documentFont} onValueChange={setDocumentFont}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {DOCUMENT_FONTS.map((font) => (
+                  <SelectItem key={font.id} value={font.id}>
+                    <span style={{ fontFamily: font.css }}>{font.label}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div>

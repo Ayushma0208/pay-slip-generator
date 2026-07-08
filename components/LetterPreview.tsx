@@ -1,5 +1,6 @@
 'use client'
 
+import { resolveDocumentFont, resolveDocumentFontZoom } from '@/lib/documentFonts'
 import { formatDateDDMonthYYYY } from '@/lib/utils'
 import type { Employee, LetterData, Settings } from '@/types'
 
@@ -7,16 +8,26 @@ interface LetterPreviewProps {
   employee: Employee | null
   settings: Settings
   letter: LetterData
+  /** Optional per-generation font override (does not require changing Settings). */
+  documentFontOverride?: string
 }
 
-export default function LetterPreview({ employee, settings, letter }: LetterPreviewProps) {
+export default function LetterPreview({
+  employee,
+  settings,
+  letter,
+  documentFontOverride,
+}: LetterPreviewProps) {
+  const fontFamily = resolveDocumentFont(documentFontOverride ?? settings.document_font)
+  const documentZoom = resolveDocumentFontZoom(settings.document_font_size)
+
   const wrapperStyle: React.CSSProperties = {
     width: 794,
     maxWidth: '100%',
     height: 'auto',
     maxHeight: 1123,
     backgroundColor: '#ffffff',
-    fontFamily: 'Arial, Helvetica, sans-serif',
+    fontFamily,
     padding: '40px 48px 36px',
     boxSizing: 'border-box',
     color: '#111827',
@@ -39,16 +50,22 @@ export default function LetterPreview({ employee, settings, letter }: LetterPrev
         id="printable-document"
         className="letter-root"
         style={{
-          ...wrapperStyle,
-          minHeight: 280,
-          textAlign: 'center',
-          color: '#6b7280',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+          zoom: documentZoom,
         }}
       >
-        Select an employee to preview letter
+        <div
+          style={{
+            ...wrapperStyle,
+            minHeight: 280,
+            textAlign: 'center',
+            color: '#6b7280',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          Select an employee to preview letter
+        </div>
       </div>
     )
   }
@@ -63,7 +80,7 @@ export default function LetterPreview({ employee, settings, letter }: LetterPrev
     : 'Subject: Experience Certificate'
 
   return (
-    <div id="printable-document" className="letter-root">
+    <div id="printable-document" className="letter-root" style={{ zoom: documentZoom }}>
       <div className="letter-page" style={wrapperStyle}>
         {/* Letterhead */}
         <div

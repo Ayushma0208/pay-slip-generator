@@ -96,6 +96,8 @@ model Settings {
   signatoryDesignation  String?  @map("signatory_designation")
   logoUrl               String?  @map("logo_url")
   signatureUrl          String?  @map("signature_url")
+  documentFont          String?  @default("arial") @map("document_font")
+  documentFontSize      Int?     @default(100) @map("document_font_size")
   payslipCustomFields   Json     @default("[]") @map("payslip_custom_fields")
   createdAt             DateTime @default(now()) @map("created_at")
 

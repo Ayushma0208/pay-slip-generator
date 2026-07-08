@@ -36,6 +36,10 @@ export interface Settings {
   signatory_designation: string
   logo_url: string
   signature_url: string
+  /** Font used for payslips and letters (see lib/documentFonts.ts) */
+  document_font: string
+  /** Font size percentage for documents (85-125) */
+  document_font_size: number
   payslip_custom_fields: PayslipCustomField[]
 }
 
@@ -60,6 +64,8 @@ export interface PayslipPreviewProps {
   fromDate: string
   toDate: string
   leaveDetails?: LeaveDetailRow[]
+  /** Optional per-generation font override (does not require changing Settings). */
+  documentFontOverride?: string
 }
 
 export interface PayslipData {

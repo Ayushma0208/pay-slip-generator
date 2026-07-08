@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { requireAuth, requireAdmin } from '@/lib/api-auth'
 import { mapSettings } from '@/lib/mappers'
 import { emptySettings } from '@/lib/utils'
+import { clampDocumentFontSize } from '@/lib/documentFonts'
 
 export async function GET() {
   const { error } = await requireAuth()
@@ -27,6 +28,8 @@ export async function PUT(request: Request) {
     signatoryDesignation: body.signatory_designation || null,
     logoUrl: body.logo_url || null,
     signatureUrl: body.signature_url || null,
+    documentFont: body.document_font || 'arial',
+    documentFontSize: clampDocumentFontSize(body.document_font_size),
     payslipCustomFields: body.payslip_custom_fields ?? [],
   }
 

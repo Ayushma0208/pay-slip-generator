@@ -11,6 +11,14 @@ import PrintButton from '@/components/PrintButton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { DOCUMENT_FONTS, DEFAULT_DOCUMENT_FONT } from '@/lib/documentFonts'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { cn, getErrorMessage } from '@/lib/utils'
 
 function mapEmployee(row: Employee): Employee {
@@ -37,6 +45,13 @@ export default function LettersPage() {
     last_working_date: today,
   })
   const [generated, setGenerated] = useState(false)
+  const [documentFont, setDocumentFont] = useState<string>(
+    settings.document_font || DEFAULT_DOCUMENT_FONT
+  )
+
+  useEffect(() => {
+    setDocumentFont(settings.document_font || DEFAULT_DOCUMENT_FONT)
+  }, [settings.document_font])
 
   const fetchEmployees = useCallback(async () => {
     try {
@@ -136,6 +151,22 @@ export default function LettersPage() {
             </div>
           </div>
 
+          <div>
+            <SectionHeader title="Document Font" />
+            <Select value={documentFont} onValueChange={setDocumentFont}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {DOCUMENT_FONTS.map((font) => (
+                  <SelectItem key={font.id} value={font.id}>
+                    <span style={{ fontFamily: font.css }}>{font.label}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="space-y-3 pt-2">
             <Button className="w-full" onClick={handleGenerate}>
               Generate Letter
@@ -146,7 +177,12 @@ export default function LettersPage() {
 
         <div className="min-w-0 flex-1 overflow-y-auto print:w-full print:overflow-visible">
           <DocumentPreviewFrame fitContent>
-            <LetterPreview employee={selected} settings={settings} letter={letter} />
+            <LetterPreview
+              employee={selected}
+              settings={settings}
+              letter={letter}
+              documentFontOverride={documentFont}
+            />
           </DocumentPreviewFrame>
         </div>
       </div>

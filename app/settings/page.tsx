@@ -5,12 +5,26 @@ import { X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import type { PayslipCustomField } from '@/types'
 import { useSettings } from '@/context/SettingsContext'
+import {
+  DOCUMENT_FONTS,
+  DEFAULT_DOCUMENT_FONT,
+  DEFAULT_DOCUMENT_FONT_SIZE,
+  clampDocumentFontSize,
+  resolveDocumentFont,
+} from '@/lib/documentFonts'
 import { getErrorMessage } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 function AssetUploadBox({
   label,
@@ -72,6 +86,8 @@ export default function SettingsPage() {
     signatory_designation: '',
     logo_url: '',
     signature_url: '',
+    document_font: DEFAULT_DOCUMENT_FONT,
+    document_font_size: DEFAULT_DOCUMENT_FONT_SIZE,
     payslip_custom_fields: [] as PayslipCustomField[],
   })
   const [saving, setSaving] = useState(false)
@@ -90,6 +106,8 @@ export default function SettingsPage() {
         signatory_designation: settings.signatory_designation,
         logo_url: settings.logo_url,
         signature_url: settings.signature_url,
+        document_font: settings.document_font || DEFAULT_DOCUMENT_FONT,
+        document_font_size: settings.document_font_size || DEFAULT_DOCUMENT_FONT_SIZE,
         payslip_custom_fields: settings.payslip_custom_fields ?? [],
       })
     }
@@ -174,6 +192,8 @@ export default function SettingsPage() {
         signatory_designation: form.signatory_designation || null,
         logo_url: form.logo_url || null,
         signature_url: form.signature_url || null,
+        document_font: form.document_font || DEFAULT_DOCUMENT_FONT,
+        document_font_size: clampDocumentFontSize(form.document_font_size),
         payslip_custom_fields: form.payslip_custom_fields.filter((f) => f.label.trim()),
       }
 
@@ -275,6 +295,56 @@ export default function SettingsPage() {
                 onChange={(e) => update('signatory_designation', e.target.value)}
               />
             </div>
+          </div>
+        </section>
+
+        <section className="rounded-xl border border-border bg-background p-6">
+          <h2 className="mb-1 text-base font-semibold text-text-primary">Document Font</h2>
+          <p className="mb-4 text-sm text-text-secondary">
+            Font used on payslips and letters (preview and PDF).
+          </p>
+          <div className="space-y-2">
+            <Label>Font family</Label>
+            <Select
+              value={form.document_font}
+              onValueChange={(value) => update('document_font', value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a font" />
+              </SelectTrigger>
+              <SelectContent>
+                {DOCUMENT_FONTS.map((font) => (
+                  <SelectItem key={font.id} value={font.id}>
+                    <span style={{ fontFamily: font.css }}>{font.label}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p
+              className="rounded-lg border border-border bg-surface px-3 py-3 text-sm text-text-primary"
+              style={{
+                fontFamily: resolveDocumentFont(form.document_font),
+                fontSize: `${clampDocumentFontSize(form.document_font_size)}%`,
+              }}
+            >
+              The quick brown fox jumps over the lazy dog — 0123456789
+            </p>
+          </div>
+          <div className="mt-4 space-y-2">
+            <Label>Font size (%)</Label>
+            <Input
+              type="number"
+              min={85}
+              max={125}
+              value={form.document_font_size}
+              onChange={(e) =>
+                setForm((prev) => ({
+                  ...prev,
+                  document_font_size: clampDocumentFontSize(e.target.value),
+                }))
+              }
+            />
+            <p className="text-xs text-text-muted">Allowed range: 85% to 125%</p>
           </div>
         </section>
 

@@ -1,5 +1,6 @@
 'use client'
 
+import { resolveDocumentFont, resolveDocumentFontZoom } from '@/lib/documentFonts'
 import { numberToIndianWords } from '@/lib/numberToWords'
 import { formatDateDDMonthYYYY } from '@/lib/utils'
 import type { PayslipPreviewProps } from '@/types'
@@ -39,7 +40,11 @@ export default function PayslipPreviewT2({
   year,
   customDeductions,
   payDate,
+  documentFontOverride,
 }: PayslipPreviewProps) {
+  const fontFamily = resolveDocumentFont(documentFontOverride ?? settings.document_font)
+  const documentZoom = resolveDocumentFontZoom(settings.document_font_size)
+
   if (!employee || !calc) {
     return (
       <div
@@ -47,11 +52,12 @@ export default function PayslipPreviewT2({
         style={{
           width: '100%',
           minHeight: '1123px',
+          zoom: documentZoom,
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
           backgroundColor: '#fafaf8',
-          fontFamily: "'Georgia', 'Times New Roman', serif",
+          fontFamily,
         }}
       >
         Select an employee to preview payslip
@@ -87,6 +93,7 @@ export default function PayslipPreviewT2({
       style={{
         width: '100%',
         minHeight: '1123px',
+        zoom: documentZoom,
         display: 'flex',
         justifyContent: 'center',
         backgroundColor: '#fafaf8',
@@ -98,7 +105,7 @@ export default function PayslipPreviewT2({
           width: '794px',
           minHeight: '1123px',
           backgroundColor: '#ffffff',
-          fontFamily: "'Georgia', 'Times New Roman', serif",
+          fontFamily,
           fontSize: '12px',
           color: '#1a1a1a',
           padding: '36px 52px',

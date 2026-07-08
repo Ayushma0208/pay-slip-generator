@@ -47,6 +47,8 @@ export function mapSettings(row: PrismaSettings): Settings {
     signatory_designation: row.signatoryDesignation ?? '',
     logo_url: row.logoUrl ?? '',
     signature_url: row.signatureUrl ?? '',
+    document_font: row.documentFont ?? 'arial',
+    document_font_size: row.documentFontSize ?? 100,
     payslip_custom_fields: parsePayslipCustomFields(row.payslipCustomFields),
   }
 }

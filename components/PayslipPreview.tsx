@@ -1,9 +1,9 @@
 'use client'
 
+import { resolveDocumentFont, resolveDocumentFontZoom } from '@/lib/documentFonts'
 import { numberToIndianWords } from '@/lib/numberToWords'
 import type { PayslipPreviewProps, Settings } from '@/types'
 
-const FONT = 'Calibri, Arial, sans-serif'
 const PAGE_W = 794
 
 const FS = {
@@ -19,7 +19,6 @@ const pageWrap: React.CSSProperties = {
   minHeight: 1123,
   position: 'relative',
   backgroundColor: '#fff',
-  fontFamily: FONT,
   fontSize: FS.body,
   color: '#000',
   lineHeight: 1.35,
@@ -74,7 +73,6 @@ const empTd: React.CSSProperties = {
   fontSize: FS.small,
   verticalAlign: 'top',
   backgroundColor: '#fff',
-  fontFamily: FONT,
 }
 
 const EMP_LABEL_PCT = [46, 44, 42] as const
@@ -144,7 +142,6 @@ function earnTh(col: number): React.CSSProperties {
     fontWeight: 700,
     textAlign: 'center',
     backgroundColor: '#fff',
-    fontFamily: FONT,
     border: 'none',
     borderBottom: '1px solid #000',
     ...earnColBorder(col),
@@ -156,7 +153,6 @@ function earnTd(col: number, extra?: React.CSSProperties): React.CSSProperties {
     padding: '4px 8px',
     fontSize: FS.small,
     backgroundColor: '#fff',
-    fontFamily: FONT,
     border: 'none',
     verticalAlign: 'top',
     ...earnColBorder(col),
@@ -252,13 +248,19 @@ export default function PayslipPreview({
   year,
   showTaxPage,
   customDeductions,
+  documentFontOverride,
 }: PayslipPreviewProps) {
+  const fontFamily = resolveDocumentFont(documentFontOverride ?? settings.document_font)
+  const documentZoom = resolveDocumentFontZoom(settings.document_font_size)
+  const pageStyle: React.CSSProperties = { ...pageWrap, fontFamily }
+
   if (!employee || !calc) {
     return (
       <div
         id="printable-document"
         style={{
-          ...pageWrap,
+          ...pageStyle,
+          zoom: documentZoom,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -513,7 +515,7 @@ export default function PayslipPreview({
       <div
         className="payslip-t1-page"
         style={{
-          ...pageWrap,
+          ...pageStyle,
           pageBreakBefore: 'always',
         }}
       >
@@ -575,8 +577,8 @@ export default function PayslipPreview({
   }
 
   return (
-    <div id="printable-document" className="payslip-t1-root">
-      <div className="payslip-t1-page" style={pageWrap}>
+    <div id="printable-document" className="payslip-t1-root" style={{ zoom: documentZoom }}>
+      <div className="payslip-t1-page" style={pageStyle}>
         <div className="payslip-t1-content" style={contentShell}>
           {renderMainContent()}
         </div>

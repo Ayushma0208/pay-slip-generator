@@ -10,12 +10,16 @@ create table settings (
   signatory_designation text,
   logo_url text,
   signature_url text,
+  document_font text default 'arial',
+  document_font_size int default 100,
   payslip_custom_fields jsonb default '[]'::jsonb,
   created_at timestamp default now()
 );
 
 -- If settings already exists, run in Supabase SQL editor:
 -- alter table settings add column if not exists payslip_custom_fields jsonb default '[]'::jsonb;
+-- alter table settings add column if not exists document_font text default 'arial';
+-- alter table settings add column if not exists document_font_size int default 100;
 
 -- Employees table
 create table employees (

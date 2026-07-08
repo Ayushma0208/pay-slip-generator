@@ -1,17 +1,16 @@
 'use client'
 
+import { resolveDocumentFont, resolveDocumentFontZoom } from '@/lib/documentFonts'
 import { numberToIndianWords } from '@/lib/numberToWords'
 import { formatDateDDMonthYYYY } from '@/lib/utils'
 import type { LeaveDetailRow } from '@/lib/leaveDetails'
 import type { PayslipPreviewProps } from '@/types'
 
-const FONT = 'Arial, Helvetica, sans-serif'
 const PAGE_STYLE: React.CSSProperties = {
   width: 794,
   minHeight: 1123,
   height: 1123,
   backgroundColor: '#fff',
-  fontFamily: FONT,
   fontSize: 11,
   color: '#000',
   padding: '32px 40px',
@@ -96,7 +95,13 @@ function GridCell({ label, value }: { label: string; value: string }) {
   )
 }
 
-function LeaveDetailsPage({ rows }: { rows: LeaveDetailRow[] }) {
+function LeaveDetailsPage({
+  rows,
+  fontFamily,
+}: {
+  rows: LeaveDetailRow[]
+  fontFamily: string
+}) {
   const thStyle: React.CSSProperties = {
     border: '1px solid #d1d5db',
     padding: '8px 6px',
@@ -123,7 +128,7 @@ function LeaveDetailsPage({ rows }: { rows: LeaveDetailRow[] }) {
   }
 
   return (
-    <div className="payslip-t4-page payslip-page" style={PAGE_STYLE}>
+    <div className="payslip-t4-page payslip-page" style={{ ...PAGE_STYLE, fontFamily }}>
       <SectionTitle>Leave Details</SectionTitle>
       <table
         style={{
@@ -170,7 +175,12 @@ export default function PayslipPreviewT4({
   year,
   customDeductions,
   leaveDetails = [],
+  documentFontOverride,
 }: PayslipPreviewProps) {
+  const fontFamily = resolveDocumentFont(documentFontOverride ?? settings.document_font)
+  const documentZoom = resolveDocumentFontZoom(settings.document_font_size)
+  const pageStyle: React.CSSProperties = { ...PAGE_STYLE, fontFamily }
+
   if (!employee || !calc) {
     return (
       <div
@@ -178,11 +188,12 @@ export default function PayslipPreviewT4({
         style={{
           width: '100%',
           minHeight: 1123,
+          zoom: documentZoom,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           color: '#6b7280',
-          fontFamily: FONT,
+          fontFamily,
         }}
       >
         Select an employee to preview payslip
@@ -219,10 +230,11 @@ export default function PayslipPreviewT4({
       className="payslip-t4-root"
       style={{
         width: 794,
+        zoom: documentZoom,
         backgroundColor: '#fff',
       }}
     >
-      <div className="payslip-t4-page payslip-page" style={PAGE_STYLE}>
+      <div className="payslip-t4-page payslip-page" style={pageStyle}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>{emp.name}</div>
@@ -379,7 +391,7 @@ export default function PayslipPreviewT4({
         </div>
       </div>
 
-      <LeaveDetailsPage rows={leaveDetails} />
+      <LeaveDetailsPage rows={leaveDetails} fontFamily={fontFamily} />
     </div>
   )
 }
